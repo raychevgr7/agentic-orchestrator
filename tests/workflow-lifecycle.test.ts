@@ -20,7 +20,23 @@ describe("workflow lifecycle", () => {
   it("requires an APPROVE verdict bound to the current draft at code review", () => {
     const workflow = { ...createWorkflow("DEMO-42", createdAt), stage: "CODE_REVIEW" as const, reviewVerdict: "APPROVE" as const, draftFingerprint: "new-draft", reviewedDraftFingerprint: "old-draft" };
     expect(() => approveStage(workflow, "CODE_REVIEW")).toThrow("current staged draft");
-    expect(approveStage({ ...workflow, reviewedDraftFingerprint: "new-draft" }, "CODE_REVIEW")).toMatchObject({ stage: "LOCAL_TESTS" });
+    expect(approveStage({ ...workflow, reviewedDraftFingerprint: "new-draft" }, "CODE_REVIEW")).toMatchObject({ stage: "PULL_REQUEST" });
+  });
+
+  it("follows the branch, targeted-test, code-review, PR, and CI happy path", () => {
+    const codeChange = { ...createWorkflow("DEMO-42", createdAt), stage: "CODE_CHANGE" as const };
+    const localTests = approveStage(codeChange, "CODE_CHANGE");
+    const codeReview = approveStage(localTests, "LOCAL_TESTS");
+    const reviewed = { ...codeReview, reviewVerdict: "APPROVE" as const, draftFingerprint: "draft-v1", reviewedDraftFingerprint: "draft-v1" };
+    const pullRequest = approveStage(reviewed, "CODE_REVIEW");
+    const ciAnalysis = approveStage(pullRequest, "PULL_REQUEST");
+    const complete = approveStage(ciAnalysis, "CI_ANALYSIS");
+
+    expect(localTests.stage).toBe("LOCAL_TESTS");
+    expect(codeReview.stage).toBe("CODE_REVIEW");
+    expect(pullRequest.stage).toBe("PULL_REQUEST");
+    expect(ciAnalysis.stage).toBe("CI_ANALYSIS");
+    expect(complete).toMatchObject({ stage: "COMPLETE", status: "COMPLETE" });
   });
 
   it("can recover an interrupted stage without advancing it", () => {

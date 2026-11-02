@@ -7,9 +7,9 @@ export class FeatureBranchService {
     if (!slug) throw new Error("Ticket summary cannot produce a feature branch name.");
     const branch = `${issueKey.toUpperCase()}/${slug}`;
     if (!/^[A-Z][A-Z0-9]+-\d+\/[a-z0-9-]+$/.test(branch)) throw new Error("Invalid issue key for feature branch.");
-    if (this.run(["status", "--porcelain"]).trim()) throw new Error("Project working tree must be clean before creating a feature branch.");
     const current = this.run(["branch", "--show-current"]).trim();
     if (current === branch) return branch;
+    if (this.run(["status", "--porcelain"]).trim()) throw new Error("Project working tree must be clean before creating a feature branch.");
     const branches = this.run(["branch", "--list", branch]).trim();
     if (branches) { this.run(["switch", branch]); return branch; }
     this.run(["switch", baseBranch]); this.run(["switch", "-c", branch]); return branch;

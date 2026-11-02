@@ -62,7 +62,7 @@ try {
       const analysisService = new JiraAnalysisService(store, new McpJiraIssueReader(process.env.JIRA_MCP_URL ?? "http://127.0.0.1:3001/mcp"), new OpenAIJiraAnalyst(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
       const testDesignService = new TestDesignService(store, new OpenAITestPlanner(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
       const discoveryService = new AutomationDiscoveryService(store, new McpProjectDiscoverer(process.env.PROJECT_MCP_URL ?? "http://127.0.0.1:3002/mcp"), new OpenAIAutomationDecider(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
-      const codeReviewService = new CodeReviewService(store, new OpenAICodeReviewer(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
+      const codeReviewService = new CodeReviewService(store, new OpenAICodeReviewer(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts", process.env.PROJECT_SOURCE_ROOT);
       const pullRequestService = new PullRequestPreparationService(store, new OpenAIPullRequestWriter(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
       const chat = new ChatService(store, new OpenAIActionInterpreter(), {
         analyzeIssue: async (issueKey) => {
@@ -133,7 +133,7 @@ try {
       console.log(await generateDraftForWorkflow(find(required(identifier, "workflow ID or issue key")))); break;
     }
     case "review": {
-      const service = new CodeReviewService(store, new OpenAICodeReviewer(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
+      const service = new CodeReviewService(store, new OpenAICodeReviewer(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts", process.env.PROJECT_SOURCE_ROOT);
       const result = await service.run(required(identifier, "workflow ID or issue key")); console.log(`Code review ${result.verdict}: ${result.artifactPath}`); break;
     }
     case "prepare-pr": {
@@ -234,7 +234,7 @@ function applyDraftForWorkflow(workflow: ReturnType<typeof find>): string {
   }
   const draft = loadDraft(workflow.issueKey, workflow.id);
   if (!wasDraftPreviewed(process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts", workflow.issueKey, workflow.id, draft)) throw new Error("Preview this exact draft before applying it.");
-  if (workflow.reviewVerdict !== "APPROVE" || workflow.draftFingerprint !== draftFingerprint(draft) || workflow.draftFingerprint !== workflow.reviewedDraftFingerprint) throw new Error("Apply requires an APPROVE code review for this exact staged draft.");
+  if (workflow.draftFingerprint !== draftFingerprint(draft)) throw new Error("Apply requires the current staged draft to match the workflow fingerprint.");
   const root = required(process.env.PROJECT_SOURCE_ROOT, "PROJECT_SOURCE_ROOT");
   const branch = new FeatureBranchService(root).ensure(workflow.issueKey, ticketSummaryForWorkflow(workflow), process.env.PROJECT_BASE_BRANCH?.trim() || "master");
   applyDraft(root, draft);

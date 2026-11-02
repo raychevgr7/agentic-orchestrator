@@ -30,7 +30,7 @@ describe("CodeReviewService", () => {
     expect(result.verdict).toBe("APPROVE");
     expect(readFileSync(result.artifactPath, "utf8")).toContain("Looks safe.");
     expect(reviewed).toMatchObject({ status: "PENDING_APPROVAL", reviewVerdict: "APPROVE", draftFingerprint: draftFingerprint(draft), reviewedDraftFingerprint: draftFingerprint(draft) });
-    expect(approveStage(reviewed, "CODE_REVIEW")).toMatchObject({ stage: "LOCAL_TESTS" });
+    expect(approveStage(reviewed, "CODE_REVIEW")).toMatchObject({ stage: "PULL_REQUEST" });
     store.close();
   });
 

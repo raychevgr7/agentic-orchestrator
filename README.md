@@ -80,7 +80,7 @@ For a write or test operation, reply `yes` to the displayed proposal. Reply `can
 2. Preview the exact draft against the local project.
 3. Run code review. An approval is bound to the draft's SHA-256 fingerprint.
 4. Approve `CODE_REVIEW` to move to `LOCAL_TESTS`.
-5. Apply the draft only after preview, matching approval, and stage approval. This creates a local feature branch named from the issue key and Jira summary, based on `PROJECT_BASE_BRANCH` (`master` by default).
+5. Approve `CODE_CHANGE`, then apply the previewed draft at `LOCAL_TESTS`. This creates a local feature branch named from the issue key and Jira summary, based on `PROJECT_BASE_BRANCH` (`master` by default).
 6. Run only the new or changed test target. It must pass `TEST_SUCCESS_REPETITIONS` consecutive times (default: `3`).
 
 The direct equivalents are:
