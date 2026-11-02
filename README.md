@@ -28,6 +28,23 @@ The included stages are generic: integrations such as Jira, Jenkins, GitHub/GitL
 
 Copy `.env.example` to `.env` and add only your local integration details. `.env` is deliberately ignored by Git and no real credentials belong in this repository.
 
+## Local project MCP server
+
+`project-mcp` provides a safe, read-only view of a local source repository. Set `PROJECT_SOURCE_ROOT` in `.env`, then run:
+
+```bash
+npm run project:mcp
+```
+
+The server exposes four MCP tools:
+
+- `project_list_tests`
+- `project_search_source`
+- `project_find_relevant_files`
+- `project_read_source_excerpt`
+
+It only reads supported source files, skips common generated/dependency directories, bounds file sizes and excerpts, and rejects path-traversal attempts. Commands that modify a project or execute tests are intentionally not exposed yet.
+
 ## Status
 
 Foundation in progress. The first migrated slice implements the generic workflow lifecycle and approval gates. MCP adapters and agent execution will follow in small, independently tested slices.

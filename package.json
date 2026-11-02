@@ -10,15 +10,20 @@
     "test:watch": "vitest",
     "demo": "tsx src/cli.ts",
     "workflow": "tsx src/cli.ts",
-    "chat": "tsx src/cli.ts chat"
+    "chat": "tsx src/cli.ts chat",
+    "project:mcp": "tsx src/project-mcp/server.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.2",
     "better-sqlite3": "^12.4.1",
     "dotenv": "^16.4.7",
-    "openai": "^6.23.0"
+    "express": "^5.1.0",
+    "openai": "^6.23.0",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
+    "@types/express": "^5.0.3",
     "@types/node": "^22.10.2",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
