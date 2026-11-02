@@ -6,24 +6,31 @@ import { z } from "zod";
 import { loadProjectMcpConfig } from "./config.js";
 import { ProjectSource } from "./source.js";
 
-const config = loadProjectMcpConfig();
-const source = new ProjectSource(config.sourceRoot);
-const app = express();
-app.use(express.json({ limit: "1mb" }));
-app.get("/health", (_request, response) => response.json({ status: "ok", service: "project-mcp" }));
-app.post("/mcp", async (request, response) => {
-  const server = createProjectMcpServer(source);
-  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-  response.on("close", () => void transport.close());
-  try {
-    await server.connect(transport);
-    await transport.handleRequest(request, response, request.body);
-  } catch (error) {
-    if (!response.headersSent) response.status(500).json({ error: "Unable to process MCP request." });
-    console.error("MCP request failed:", error instanceof Error ? error.message : "Unknown error");
-  }
-});
-app.listen(config.port, config.bindHost, () => console.log(`project-mcp is listening on http://${config.bindHost}:${config.port}/mcp`));
+export function createProjectMcpApp(source: ProjectSource) {
+  const app = express();
+  app.use(express.json({ limit: "1mb" }));
+  app.get("/health", (_request, response) => response.json({ status: "ok", service: "project-mcp" }));
+  app.post("/mcp", async (request, response) => {
+    const server = createProjectMcpServer(source);
+    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+    response.on("close", () => void transport.close());
+    try {
+      await server.connect(transport);
+      await transport.handleRequest(request, response, request.body);
+    } catch (error) {
+      if (!response.headersSent) response.status(500).json({ error: "Unable to process MCP request." });
+      console.error("MCP request failed:", error instanceof Error ? error.message : "Unknown error");
+    }
+  });
+  return app;
+}
+
+function startProjectMcpServer(): void {
+  const config = loadProjectMcpConfig();
+  createProjectMcpApp(new ProjectSource(config.sourceRoot)).listen(config.port, config.bindHost, () => console.log(`project-mcp is listening on http://${config.bindHost}:${config.port}/mcp`));
+}
+
+if (process.argv[1] && /project-mcp[\\/]server\.(?:ts|js)$/.test(process.argv[1])) startProjectMcpServer();
 
 export function createProjectMcpServer(project: ProjectSource): McpServer {
   const server = new McpServer({ name: "project-source", version: "0.1.0" });
