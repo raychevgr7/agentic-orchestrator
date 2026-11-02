@@ -1,95 +1,169 @@
 # Agentic Orchestrator
 
-A framework-independent TypeScript orchestrator for coordinating specialized AI agents around a single task.
+A framework-independent TypeScript reference project for coordinating specialised AI agents through a controlled software-delivery workflow.
 
-The project deliberately keeps orchestration logic in application code rather than hiding it behind an agent framework. It is intended as a portfolio-quality reference implementation: explicit state transitions, role contracts, guardrails, and a traceable execution history.
+It is designed as a portfolio project for QA and automation engineers: clone it, connect your own Jira, local source project, CI system, and model provider, then adapt the agent rules to your organisation. No company-specific credentials, tickets, URLs, or domain assumptions are included.
 
-## Initial architecture
+## What it demonstrates
 
-```text
-Issue → Orchestrator → Specialist agents → Approval gates → Final outcome
-                     ↘ persistent workflow state and audit trail ↗
-```
+- Explicit workflow states and human approval gates.
+- Role-specific agents for issue analysis, test design, automation discovery, implementation planning, draft generation, and code review.
+- Natural-language chat requests that only propose actions; every action needs a separate `yes` / `да` confirmation.
+- Optional read-only Jira and local-project MCP adapters.
+- A staged test-draft workflow with review, preview, safe application, and targeted flaky-test validation.
+- SQLite workflow persistence and generated artifacts for each run.
 
-Each agent receives a typed context and returns a typed result. The orchestrator owns sequencing, failure policy, approval gates, and the immutable audit trail. Model providers will be introduced through a small adapter rather than coupled to agent logic.
-
-## Workflow lifecycle
-
-The initial workflow deliberately pauses after every stage. A person must approve the current stage before the next one becomes available. This makes external-system access and eventual write operations explicit and auditable.
+## Workflow
 
 ```text
-ISSUE_ANALYSIS → TEST_PLAN → PROJECT_DISCOVERY → CODE_CHANGE → CODE_REVIEW → LOCAL_TESTS
-→ PULL_REQUEST → CI_ANALYSIS → ISSUE_COMMENT → COMPLETE
+ISSUE_ANALYSIS
+  → TEST_PLAN
+  → PROJECT_DISCOVERY
+  → CODE_CHANGE
+  → CODE_REVIEW
+  → LOCAL_TESTS
+  → PULL_REQUEST
+  → CI_ANALYSIS
+  → ISSUE_COMMENT
+  → COMPLETE
 ```
 
-The included stages are generic: integrations such as Jira, Jenkins, GitHub/GitLab, and a local project are optional adapters configured by the person running the project.
+Every stage waits for human approval before the workflow moves to the next stage. A `REQUEST_CHANGES` or `BLOCKED` review returns the workflow to `CODE_CHANGE`, preserving feedback so the draft can be updated and reviewed again.
 
-## Flaky-test gate
+## Quick start
 
-`TEST_SUCCESS_REPETITIONS` defines the required targeted-test repetition policy. At `LOCAL_TESTS`, the configured command runs only the requested new or changed test until it has passed the required number of consecutive times. A failure rejects the stage and requires an explicit `recover` before retrying.
+```bash
+npm install
+copy .env.example .env
+npm run build
+npm test
+```
 
-The first working agent is `jira-analyst`. With `jira-mcp` running and OpenAI configuration present in `.env`, run:
+Fill in only the integrations you plan to use in `.env`. The file is ignored by Git.
+
+Start a workflow through chat:
+
+```bash
+npm run chat -- "Start work for PROJECT-123"
+# Reply to the proposal with: yes
+```
+
+Or use the direct workflow command:
 
 ```bash
 npm run workflow -- start PROJECT-123
-npm run workflow -- analyze PROJECT-123
+npm run workflow -- status PROJECT-123
 ```
 
-Add `--with-parent`, `--with-subtasks`, and/or `--with-related` to explicitly include those issue records in the analysis context. They are opt-in so the agent does not expand Jira access unexpectedly.
+## Natural-language workflow examples
 
-It reads only the scoped Jira issue, writes `issue-analysis.md` and its compact source context under `data/artifacts/`, then returns the workflow to `PENDING_APPROVAL`. Approve the `ISSUE_ANALYSIS` stage only after reviewing that artifact.
+The orchestrator supports English natural-language requests. It interprets one intent, displays the planned action, and waits for confirmation. It never executes an action as part of interpretation.
 
-## Configuration
+```text
+Analyze PROJECT-123
+Design tests for PROJECT-123
+Discover automation for PROJECT-123
+Generate a test draft for PROJECT-123
+Preview draft for PROJECT-123
+Review the code for PROJECT-123
+Apply draft for PROJECT-123
+Run tests/login.spec.ts for PROJECT-123
+Approve CODE_REVIEW for PROJECT-123
+```
 
-Copy `.env.example` to `.env` and add only your local integration details. `.env` is deliberately ignored by Git and no real credentials belong in this repository.
+For a write or test operation, reply `yes` or `да` to the displayed proposal. Reply `cancel` or `откажи` to discard it.
 
-## Local project MCP server
+## Draft-to-test flow
 
-`project-mcp` provides a safe, read-only view of a local source repository. Set `PROJECT_SOURCE_ROOT` in `.env`, then run it directly:
+1. At `CODE_CHANGE`, generate a draft or stage one manually.
+2. Preview the exact draft against the local project.
+3. Run code review. An approval is bound to the draft's SHA-256 fingerprint.
+4. Approve `CODE_REVIEW` to move to `LOCAL_TESTS`.
+5. Apply the draft only after preview, matching approval, and stage approval.
+6. Run only the new or changed test target. It must pass `TEST_SUCCESS_REPETITIONS` consecutive times (default: `3`).
+
+The direct equivalents are:
+
+```bash
+npm run workflow -- generate-draft PROJECT-123
+npm run workflow -- preview-draft PROJECT-123
+npm run workflow -- review PROJECT-123
+npm run workflow -- approve PROJECT-123 CODE_REVIEW
+npm run workflow -- apply-draft PROJECT-123 --confirm
+npm run workflow -- verify PROJECT-123 tests/login.spec.ts
+```
+
+If targeted validation fails, the workflow becomes `REJECTED`. Review the artifact, then explicitly retry it:
+
+```bash
+npm run workflow -- recover PROJECT-123
+```
+
+## MCP adapters
+
+### Local project MCP
+
+`project-mcp` gives agents a bounded, read-only view of the project named by `PROJECT_SOURCE_ROOT`.
 
 ```bash
 npm run project:mcp
 ```
 
-The server exposes four MCP tools:
+It supports listing tests, source search, relevant-file discovery, and bounded source excerpts. It rejects traversal and symlink escapes, skips dependency/generated folders, and reads only supported source files.
 
-- `project_list_tests`
-- `project_search_source`
-- `project_find_relevant_files`
-- `project_read_source_excerpt`
+### Jira MCP
 
-It only reads supported source files, skips common generated/dependency directories, bounds file sizes and excerpts, and rejects path-traversal attempts. Commands that modify a project or execute tests are intentionally not exposed yet.
-
-To run the MCP servers in Docker instead, use:
-
-```bash
-docker compose up --build
-```
-
-The source project is mounted read-only and the MCP port is published only to `127.0.0.1:3002`. The optional Jira adapter uses its own Compose profile:
-
-```bash
-docker compose --profile jira up --build
-```
-
-## Jira MCP server
-
-`jira-mcp` is an optional, read-only adapter. Configure `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, and an explicit comma-separated `JIRA_ALLOWED_PROJECT_KEYS` scope in `.env`, then run:
+`jira-mcp` is optional and read-only. Configure `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, and a mandatory `JIRA_ALLOWED_PROJECT_KEYS` scope.
 
 ```bash
 npm run jira:mcp
 ```
 
-It listens only on `127.0.0.1` and exposes `jira_get_issue`, `jira_search_issues`, and `jira_get_attachment`. Searches are always constrained to the configured project scope; it intentionally accepts filters rather than arbitrary JQL. No Jira write operation is included.
+It exposes scoped issue, search, and attachment reads. It does not accept arbitrary JQL and provides no Jira write operation.
 
-## Status
+### Docker
 
-Foundation in progress. The first migrated slice implements the generic workflow lifecycle and approval gates. MCP adapters and agent execution will follow in small, independently tested slices.
-
-## Local development
+Run the local-project adapter in Docker:
 
 ```bash
-npm install
+docker compose up --build
+```
+
+The project source is mounted read-only and the service port is published only on `127.0.0.1`. Start the optional Jira adapter as well:
+
+```bash
+docker compose --profile jira up --build
+```
+
+## Safety model
+
+- MCP servers bind to loopback by default. Docker only exposes ports on loopback.
+- Jira access is restricted to configured project keys and read-only operations.
+- Test drafts can write only supported test-file extensions beneath the configured source root; symlinked path components are rejected.
+- Applying a draft requires an exact preview fingerprint and an exact approved code-review fingerprint.
+- Test targets must be repository-relative, contain no traversal segments, and resolve inside `PROJECT_SOURCE_ROOT`, including after symlink resolution.
+- `PROJECT_TEST_COMMAND_TEMPLATE` must include `{test}`. Only the validated test target is substituted into it.
+
+## Configuration
+
+See [`.env.example`](.env.example) for all variables. The main local settings are:
+
+```dotenv
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4.1-mini
+PROJECT_SOURCE_ROOT=
+WORKFLOW_ARTIFACTS_PATH=./data/artifacts
+TEST_SUCCESS_REPETITIONS=3
+PROJECT_TEST_COMMAND_TEMPLATE=npx playwright test {test}
+```
+
+`PROJECT_SOURCE_ROOT` is required for previewing, applying, or running a targeted local test.
+
+## Development
+
+```bash
 npm run build
 npm test
 ```
+
+The automated suite covers workflow transitions, persistence, MCP source boundaries, safe test writes, draft-review fingerprints, code-review remediation, chat confirmation, and flaky-test enforcement.
