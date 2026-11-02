@@ -11,3 +11,7 @@ export function loadOrchestratorRule(): string {
 export function loadJiraAnalystRule(): string {
   return readFileSync(join(rulesDirectory, "jira-analyst.md"), "utf8").trim();
 }
+
+export function loadTestDesignerRule(): string {
+  return readFileSync(join(rulesDirectory, "test-designer.md"), "utf8").trim();
+}

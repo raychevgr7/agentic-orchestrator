@@ -2,6 +2,7 @@ import "dotenv/config";
 import { resolve } from "node:path";
 import { ChatService, OpenAIActionInterpreter } from "./chat.js";
 import { JiraAnalysisService, McpJiraIssueReader, OpenAIJiraAnalyst } from "./agents/jira-analyst.js";
+import { OpenAITestPlanner, TestDesignService } from "./agents/test-designer.js";
 import { addFeedback, approveStage, createWorkflow, recoverWorkflow } from "./workflow/lifecycle.js";
 import { SqliteWorkflowStore } from "./workflow/store.js";
 import { workflowStages, type WorkflowStage } from "./workflow/types.js";
@@ -47,14 +48,24 @@ try {
     case "chat": {
       const message = process.argv.slice(3).join(" ");
       const analysisService = new JiraAnalysisService(store, new McpJiraIssueReader(process.env.JIRA_MCP_URL ?? "http://127.0.0.1:3001/mcp"), new OpenAIJiraAnalyst(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
+      const testDesignService = new TestDesignService(store, new OpenAITestPlanner(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
       const chat = new ChatService(store, new OpenAIActionInterpreter(), {
         analyzeIssue: async (issueKey) => {
           const result = await analysisService.run(issueKey);
           return `Issue analysis saved to ${result.artifactPath}.`;
         },
+        designTests: async (issueKey) => {
+          const result = await testDesignService.run(issueKey);
+          return `Test plan saved to ${result.artifactPath}.`;
+        },
       });
       console.log(await chat.respond(message));
       break;
+    }
+    case "design": {
+      const service = new TestDesignService(store, new OpenAITestPlanner(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
+      const result = await service.run(required(identifier, "workflow ID or issue key"));
+      console.log(`Test plan saved to ${result.artifactPath}.`); break;
     }
     case "analyze": {
       const service = new JiraAnalysisService(store, new McpJiraIssueReader(process.env.JIRA_MCP_URL ?? "http://127.0.0.1:3001/mcp"), new OpenAIJiraAnalyst(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
@@ -96,5 +107,5 @@ function print(value: unknown): void {
 }
 
 function usage(): void {
-  console.error("Usage: npm run workflow -- start|analyze|status|approve|recover|feedback <issue-key-or-id> [stage|message] | chat <free text>\n  analyze options: --with-parent --with-subtasks --with-related");
+  console.error("Usage: npm run workflow -- start|analyze|design|status|approve|recover|feedback <issue-key-or-id> [stage|message] | chat <free text>\n  analyze options: --with-parent --with-subtasks --with-related");
 }

@@ -27,7 +27,8 @@ export interface ActionInterpreter {
 }
 
 export interface WorkflowActivities {
-  analyzeIssue(issueKey: string): Promise<string>;
+  analyzeIssue?: (issueKey: string) => Promise<string>;
+  designTests?: (issueKey: string) => Promise<string>;
 }
 
 export class OpenAIActionInterpreter implements ActionInterpreter {
@@ -104,10 +105,12 @@ export class ChatService {
         return `Feedback saved:\n${JSON.stringify(updated, null, 2)}`;
       }
       case "ANALYZE_ISSUE": {
-        if (!this.activities) throw new Error("No workflow activity executor is registered.");
+        if (!this.activities?.analyzeIssue) throw new Error("No issue analysis executor is registered.");
         return this.activities.analyzeIssue(issueKey);
       }
       case "DESIGN_TESTS":
+        if (!this.activities?.designTests) throw new Error("No test design executor is registered.");
+        return this.activities.designTests(issueKey);
       case "DISCOVER_AUTOMATION":
         return `The ${action.kind} agent is not registered yet. No external action was performed.`;
       default:
