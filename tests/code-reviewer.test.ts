@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -52,4 +53,18 @@ describe("CodeReviewService", () => {
     expect(() => approveStage(updated, "CODE_REVIEW")).toThrow("waiting at CODE_CHANGE");
     store.close();
   });
+
+  it("includes the actual feature-branch Git diff in review context", async () => {
+    const root = mkdtempSync(join(tmpdir(), "code-review-diff-")); directories.push(root);
+    const project = join(root, "project"); mkdirSync(join(project, "tests"), { recursive: true });
+    git(project, "init", "-b", "master"); git(project, "config", "user.email", "test@example.com"); git(project, "config", "user.name", "Test User"); writeFileSync(join(project, "README.md"), "fixture"); git(project, "add", "."); git(project, "commit", "-m", "initial");
+    writeFileSync(join(project, "tests", "login.spec.ts"), "test('actual diff', () => {});\n");
+    const store = new SqliteWorkflowStore(join(root, "workflows.db")); const workflow = { ...createWorkflow("DEMO-17"), stage: "CODE_REVIEW" as const }; store.create(workflow);
+    const directory = join(root, "artifacts", workflow.issueKey, workflow.id); mkdirSync(directory, { recursive: true }); writeFileSync(join(directory, "staged-test-draft.json"), JSON.stringify({ path: "tests/login.spec.ts", content: "test('actual diff', () => {});" }));
+    const reviewer: CodeReviewer = { review: async context => { expect(context).toContain("## Actual Git diff"); expect(context).toContain("actual diff"); return "## Verdict\nAPPROVE"; } };
+    await new CodeReviewService(store, reviewer, join(root, "artifacts"), project).run(workflow.id);
+    store.close();
+  });
 });
+
+function git(cwd: string, ...args: string[]): string { return execFileSync("git", args, { cwd, encoding: "utf8" }); }
