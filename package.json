@@ -1,0 +1,19 @@
+{
+  "name": "agentic-orchestrator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A framework-independent TypeScript orchestrator for role-based AI agents.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "demo": "tsx src/demo.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
