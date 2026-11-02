@@ -18,7 +18,7 @@ Each agent receives a typed context and returns a typed result. The orchestrator
 The initial workflow deliberately pauses after every stage. A person must approve the current stage before the next one becomes available. This makes external-system access and eventual write operations explicit and auditable.
 
 ```text
-ISSUE_ANALYSIS → TEST_PLAN → PROJECT_DISCOVERY → CODE_CHANGE → LOCAL_TESTS
+ISSUE_ANALYSIS → TEST_PLAN → PROJECT_DISCOVERY → CODE_CHANGE → CODE_REVIEW → LOCAL_TESTS
 → PULL_REQUEST → CI_ANALYSIS → ISSUE_COMMENT → COMPLETE
 ```
 
@@ -26,7 +26,7 @@ The included stages are generic: integrations such as Jira, Jenkins, GitHub/GitL
 
 ## Flaky-test gate
 
-`TEST_SUCCESS_REPETITIONS` defines the required targeted-test repetition policy and is passed into the Engineer proposal. Runtime enforcement will be enabled with the forthcoming `LOCAL_TESTS` executor; until then, no workflow stage claims that the flaky-test gate has executed.
+`TEST_SUCCESS_REPETITIONS` defines the required targeted-test repetition policy. At `LOCAL_TESTS`, the configured command runs only the requested new or changed test until it has passed the required number of consecutive times. A failure rejects the stage and requires an explicit `recover` before retrying.
 
 The first working agent is `jira-analyst`. With `jira-mcp` running and OpenAI configuration present in `.env`, run:
 
