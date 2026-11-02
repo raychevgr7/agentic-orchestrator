@@ -8,7 +8,7 @@ It is designed as a portfolio project for QA and automation engineers: clone it,
 
 - Explicit workflow states and human approval gates.
 - Role-specific agents for issue analysis, test design, automation discovery, implementation planning, draft generation, and code review.
-- Natural-language chat requests that only propose actions; every action needs a separate `yes` / `да` confirmation.
+- English natural-language chat requests that only propose actions; every action needs a separate `yes` confirmation.
 - Optional read-only Jira and local-project MCP adapters.
 - A staged test-draft workflow with review, preview, safe application, and targeted flaky-test validation.
 - SQLite workflow persistence and generated artifacts for each run.
@@ -71,7 +71,7 @@ Run tests/login.spec.ts for PROJECT-123
 Approve CODE_REVIEW for PROJECT-123
 ```
 
-For a write or test operation, reply `yes` or `да` to the displayed proposal. Reply `cancel` or `откажи` to discard it.
+For a write or test operation, reply `yes` to the displayed proposal. Reply `cancel` to discard it.
 
 ## Draft-to-test flow
 

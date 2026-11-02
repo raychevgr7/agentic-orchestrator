@@ -14,7 +14,7 @@ describe("ChatService", () => {
 
     await expect(chat.respond("Start work for DEMO-7")).resolves.toContain("Planned action: START_WORKFLOW for DEMO-7");
     expect(store.find("DEMO-7")).toBeUndefined();
-    await expect(chat.respond("да")).resolves.toContain("Workflow started");
+    await expect(chat.respond("yes")).resolves.toContain("Workflow started");
     expect(store.find("DEMO-7")).toMatchObject({ stage: "ISSUE_ANALYSIS", status: "PENDING_APPROVAL" });
     store.close();
   });

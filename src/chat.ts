@@ -82,7 +82,7 @@ export class ChatService {
     if (action.kind === "UNKNOWN") return `I need more detail: ${action.explanation}`;
     if (!action.issueKey) return `An issue key is required, for example PROJECT-123. ${action.explanation}`;
     this.store.savePendingAction(action);
-    return `${action.explanation}\n\nPlanned action: ${describe(action)}\n\nReply with \"yes\" / \"да\" to confirm or \"cancel\" / \"откажи\" to cancel.`;
+    return `${action.explanation}\n\nPlanned action: ${describe(action)}\n\nReply with \"yes\" to confirm or \"cancel\" to cancel.`;
   }
 
   private async executePending(): Promise<string> {
@@ -170,6 +170,6 @@ function describe(action: ChatAction): string {
   return `${action.kind}${action.issueKey ? ` for ${action.issueKey}` : ""}${action.stage ? ` at ${action.stage}` : ""}${action.testTarget ? ` (${action.testTarget})` : ""}`;
 }
 
-function isConfirmation(message: string): boolean { return /^(yes|confirm|ok|да|потвърждавам)$/i.test(message); }
-function isCancellation(message: string): boolean { return /^(no|cancel|stop|не|откажи)$/i.test(message); }
+function isConfirmation(message: string): boolean { return /^(yes|confirm|ok)$/i.test(message); }
+function isCancellation(message: string): boolean { return /^(no|cancel|stop)$/i.test(message); }
 function isRecord(value: unknown): value is Record<string, unknown> { return typeof value === "object" && value !== null; }
