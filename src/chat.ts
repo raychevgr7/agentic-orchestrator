@@ -26,6 +26,10 @@ export interface ActionInterpreter {
   interpret(message: string): Promise<ChatAction>;
 }
 
+export interface WorkflowActivities {
+  analyzeIssue(issueKey: string): Promise<string>;
+}
+
 export class OpenAIActionInterpreter implements ActionInterpreter {
   public async interpret(message: string): Promise<ChatAction> {
     const apiKey = process.env.OPENAI_API_KEY?.trim();
@@ -50,7 +54,7 @@ export class OpenAIActionInterpreter implements ActionInterpreter {
 }
 
 export class ChatService {
-  public constructor(private readonly store: WorkflowStore, private readonly interpreter: ActionInterpreter) {}
+  public constructor(private readonly store: WorkflowStore, private readonly interpreter: ActionInterpreter, private readonly activities?: WorkflowActivities) {}
 
   public async respond(message: string): Promise<string> {
     const trimmed = message.trim();
@@ -68,15 +72,15 @@ export class ChatService {
     return `${action.explanation}\n\nPlanned action: ${describe(action)}\n\nReply with \"yes\" / \"да\" to confirm or \"cancel\" / \"откажи\" to cancel.`;
   }
 
-  private executePending(): string {
+  private async executePending(): Promise<string> {
     const action = this.store.getPendingAction() as ChatAction | undefined;
     if (!action) return "No pending action. Describe what you would like to do.";
-    const result = this.execute(action);
+    const result = await this.execute(action);
     this.store.clearPendingAction();
     return result;
   }
 
-  private execute(action: ChatAction): string {
+  private async execute(action: ChatAction): Promise<string> {
     const issueKey = action.issueKey!;
 
     switch (action.kind) {
@@ -99,7 +103,10 @@ export class ChatService {
         this.store.save(updated);
         return `Feedback saved:\n${JSON.stringify(updated, null, 2)}`;
       }
-      case "ANALYZE_ISSUE":
+      case "ANALYZE_ISSUE": {
+        if (!this.activities) throw new Error("No workflow activity executor is registered.");
+        return this.activities.analyzeIssue(issueKey);
+      }
       case "DESIGN_TESTS":
       case "DISCOVER_AUTOMATION":
         return `The ${action.kind} agent is not registered yet. No external action was performed.`;

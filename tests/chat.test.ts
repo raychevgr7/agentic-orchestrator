@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { ChatService, type ActionInterpreter, type ChatAction } from "../src/chat.js";
+import { ChatService, type ActionInterpreter, type ChatAction, type WorkflowActivities } from "../src/chat.js";
 import { SqliteWorkflowStore } from "../src/workflow/store.js";
 
 const directories: string[] = [];
@@ -37,12 +37,23 @@ describe("ChatService", () => {
     expect(store.getPendingAction()).toMatchObject({ kind: "APPROVE_STAGE", issueKey: "DEMO-9" });
     store.close();
   });
+
+  it("runs issue analysis only after confirmation", async () => {
+    const { chat, store } = createChat({ kind: "ANALYZE_ISSUE", issueKey: "DEMO-10", explanation: "I can analyze the issue." }, {
+      analyzeIssue: async (issueKey: string) => `Analysis complete for ${issueKey}.`,
+    });
+
+    await chat.respond("Analyze DEMO-10");
+    await expect(chat.respond("yes")).resolves.toBe("Analysis complete for DEMO-10.");
+    expect(store.getPendingAction()).toBeUndefined();
+    store.close();
+  });
 });
 
-function createChat(action: ChatAction) {
+function createChat(action: ChatAction, activities?: WorkflowActivities) {
   const directory = mkdtempSync(join(tmpdir(), "agentic-orchestrator-chat-"));
   directories.push(directory);
   const store = new SqliteWorkflowStore(join(directory, "workflows.db"));
   const interpreter: ActionInterpreter = { interpret: async () => action };
-  return { chat: new ChatService(store, interpreter), store };
+  return { chat: new ChatService(store, interpreter, activities), store };
 }
