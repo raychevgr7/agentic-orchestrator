@@ -9,10 +9,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "demo": "tsx src/cli.ts",
-    "workflow": "tsx src/cli.ts"
+    "workflow": "tsx src/cli.ts",
+    "chat": "tsx src/cli.ts chat"
   },
   "dependencies": {
-    "better-sqlite3": "^12.4.1"
+    "better-sqlite3": "^12.4.1",
+    "dotenv": "^16.4.7",
+    "openai": "^6.23.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",

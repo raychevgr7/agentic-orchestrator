@@ -3,10 +3,21 @@ import { dirname } from "node:path";
 import Database from "better-sqlite3";
 import type { Workflow, WorkflowStage, WorkflowStatus } from "./types.js";
 
+export interface PendingAction {
+  kind: string;
+  issueKey?: string;
+  stage?: string;
+  feedback?: string;
+  explanation: string;
+}
+
 export interface WorkflowStore {
   create(workflow: Workflow): void;
   find(idOrIssueKey: string): Workflow | undefined;
   save(workflow: Workflow): void;
+  savePendingAction(action: PendingAction): void;
+  takePendingAction(): PendingAction | undefined;
+  clearPendingAction(): void;
   close(): void;
 }
 
@@ -28,6 +39,11 @@ export class SqliteWorkflowStore implements WorkflowStore {
       );
       CREATE INDEX IF NOT EXISTS workflows_issue_key_created_at
         ON workflows (issue_key, created_at DESC);
+      CREATE TABLE IF NOT EXISTS pending_actions (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        action_json TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
     `);
   }
 
@@ -55,6 +71,25 @@ export class SqliteWorkflowStore implements WorkflowStore {
       WHERE id = @id
     `).run({ ...workflow, feedback: workflow.feedback ?? null });
     if (result.changes !== 1) throw new Error(`Workflow '${workflow.id}' was not found.`);
+  }
+
+  public savePendingAction(action: PendingAction): void {
+    this.database.prepare(`
+      INSERT INTO pending_actions (id, action_json, created_at) VALUES (1, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET action_json = excluded.action_json, created_at = excluded.created_at
+    `).run(JSON.stringify(action), new Date().toISOString());
+  }
+
+  public takePendingAction(): PendingAction | undefined {
+    const row = this.database.prepare("SELECT action_json FROM pending_actions WHERE id = 1")
+      .get() as { action_json: string } | undefined;
+    if (!row) return undefined;
+    this.clearPendingAction();
+    return JSON.parse(row.action_json) as PendingAction;
+  }
+
+  public clearPendingAction(): void {
+    this.database.prepare("DELETE FROM pending_actions WHERE id = 1").run();
   }
 
   public close(): void {

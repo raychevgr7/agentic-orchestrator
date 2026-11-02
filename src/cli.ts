@@ -1,4 +1,6 @@
+import "dotenv/config";
 import { resolve } from "node:path";
+import { ChatService, OpenAIActionInterpreter } from "./chat.js";
 import { addFeedback, approveStage, createWorkflow, recoverWorkflow } from "./workflow/lifecycle.js";
 import { SqliteWorkflowStore } from "./workflow/store.js";
 import { workflowStages, type WorkflowStage } from "./workflow/types.js";
@@ -41,6 +43,12 @@ try {
       print(updated);
       break;
     }
+    case "chat": {
+      const message = process.argv.slice(3).join(" ");
+      const chat = new ChatService(store, new OpenAIActionInterpreter());
+      console.log(await chat.respond(message));
+      break;
+    }
     default:
       usage();
       process.exitCode = 1;
@@ -75,5 +83,5 @@ function print(value: unknown): void {
 }
 
 function usage(): void {
-  console.error("Usage: npm run workflow -- start|status|approve|recover|feedback <issue-key-or-id> [stage|message]");
+  console.error("Usage: npm run workflow -- start|status|approve|recover|feedback <issue-key-or-id> [stage|message] | chat <free text>");
 }
