@@ -96,7 +96,7 @@ npm run workflow -- prepare-pr PROJECT-123
 npm run workflow -- analyze-ci PROJECT-123 42
 ```
 
-`prepare-pr` creates `pull-request-description.md` from the implementation, review, and targeted-test artifacts. It never creates a branch, pushes code, or opens a real pull request; those Git provider integrations remain opt-in future adapters.
+`apply-draft` creates or switches to an issue-named local feature branch from `PROJECT_BASE_BRANCH` before writing the approved automation code. `prepare-pr` then creates `pull-request-description.md` from the ticket analysis, automation scope, implementation, review, and targeted-test artifacts. It never commits, pushes code, or opens a real pull request; those steps remain manual.
 
 `analyze-ci` is read-only: it retrieves one explicit Jenkins build number from `JENKINS_DEFAULT_JOB_PATH`, writes `ci-build-report.json` and `ci-analysis.md`, then returns the workflow to its approval gate. It supports successful, failed, and running builds without claiming a passing result prematurely.
 
