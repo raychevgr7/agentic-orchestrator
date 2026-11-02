@@ -77,6 +77,21 @@ describe("ChatService", () => {
     expect(store.getPendingAction()).toBeUndefined();
     store.close();
   });
+
+  it("previews and applies a draft only after separate confirmations", async () => {
+    const { chat, store } = createChat({ kind: "PREVIEW_DRAFT", issueKey: "DEMO-14", explanation: "I can preview the draft." }, {
+      previewDraft: async () => "Draft preview.",
+      applyDraft: async () => "Draft applied.",
+    });
+    await chat.respond("Preview draft for DEMO-14");
+    await expect(chat.respond("yes")).resolves.toBe("Draft preview.");
+
+    const applyInterpreter: ActionInterpreter = { interpret: async () => ({ kind: "APPLY_DRAFT", issueKey: "DEMO-14", explanation: "I can apply the approved draft." }) };
+    const applyChat = new ChatService(store, applyInterpreter, { applyDraft: async () => "Draft applied." });
+    await applyChat.respond("Apply draft for DEMO-14");
+    await expect(applyChat.respond("yes")).resolves.toBe("Draft applied.");
+    store.close();
+  });
 });
 
 function createChat(action: ChatAction, activities?: WorkflowActivities) {

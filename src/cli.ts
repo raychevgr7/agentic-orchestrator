@@ -73,6 +73,8 @@ try {
           return `Automation decision saved to ${result.artifactPath}.`;
         },
         generateDraft: async (issueKey) => generateDraftForWorkflow(find(issueKey)),
+        previewDraft: async (issueKey) => previewDraftForWorkflow(find(issueKey)),
+        applyDraft: async (issueKey) => applyDraftForWorkflow(find(issueKey)),
         reviewCode: async (issueKey) => {
           const result = await codeReviewService.run(issueKey);
           return `Code review ${result.verdict}: ${result.artifactPath}.`;
@@ -117,15 +119,11 @@ try {
       const result = await service.run(required(identifier, "workflow ID or issue key")); console.log(`Code review ${result.verdict}: ${result.artifactPath}`); break;
     }
     case "preview-draft": {
-      const workflow = find(required(identifier, "workflow ID or issue key")); const draft = loadDraft(workflow.issueKey, workflow.id);
-      console.log(previewDraft(required(process.env.PROJECT_SOURCE_ROOT, "PROJECT_SOURCE_ROOT"), draft)); markDraftPreviewed(process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts", workflow.issueKey, workflow.id, draft); break;
+      console.log(previewDraftForWorkflow(find(required(identifier, "workflow ID or issue key")))); break;
     }
     case "apply-draft": {
       if (!process.argv.includes("--confirm")) throw new Error("Preview the draft first, then rerun with --confirm to apply it.");
-      const workflow = find(required(identifier, "workflow ID or issue key")); const draft = loadDraft(workflow.issueKey, workflow.id);
-      if (!wasDraftPreviewed(process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts", workflow.issueKey, workflow.id, draft)) throw new Error("Preview this exact draft before applying it.");
-      if (workflow.reviewVerdict !== "APPROVE" || workflow.draftFingerprint !== draftFingerprint(draft) || workflow.draftFingerprint !== workflow.reviewedDraftFingerprint) throw new Error("Apply requires an APPROVE code review for this exact staged draft.");
-      applyDraft(required(process.env.PROJECT_SOURCE_ROOT, "PROJECT_SOURCE_ROOT"), draft); console.log("Approved test draft applied."); break;
+      console.log(applyDraftForWorkflow(find(required(identifier, "workflow ID or issue key")))); break;
     }
     case "analyze": {
       const service = new JiraAnalysisService(store, new McpJiraIssueReader(process.env.JIRA_MCP_URL ?? "http://127.0.0.1:3001/mcp"), new OpenAIJiraAnalyst(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
@@ -185,4 +183,22 @@ async function generateDraftForWorkflow(workflow: ReturnType<typeof find>): Prom
   const artifactPath = stageDraft(root, workflow.issueKey, workflow.id, draft);
   store.save({ ...workflow, reviewVerdict: undefined, draftFingerprint: draftFingerprint(draft), reviewedDraftFingerprint: undefined, updatedAt: new Date().toISOString() });
   return `Staged draft saved to ${artifactPath}.`;
+}
+
+function previewDraftForWorkflow(workflow: ReturnType<typeof find>): string {
+  const draft = loadDraft(workflow.issueKey, workflow.id);
+  const output = previewDraft(required(process.env.PROJECT_SOURCE_ROOT, "PROJECT_SOURCE_ROOT"), draft);
+  markDraftPreviewed(process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts", workflow.issueKey, workflow.id, draft);
+  return output;
+}
+
+function applyDraftForWorkflow(workflow: ReturnType<typeof find>): string {
+  if (workflow.stage !== "LOCAL_TESTS" || workflow.status !== "PENDING_APPROVAL") {
+    throw new Error("Draft application is available only after CODE_REVIEW has been approved and LOCAL_TESTS is waiting.");
+  }
+  const draft = loadDraft(workflow.issueKey, workflow.id);
+  if (!wasDraftPreviewed(process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts", workflow.issueKey, workflow.id, draft)) throw new Error("Preview this exact draft before applying it.");
+  if (workflow.reviewVerdict !== "APPROVE" || workflow.draftFingerprint !== draftFingerprint(draft) || workflow.draftFingerprint !== workflow.reviewedDraftFingerprint) throw new Error("Apply requires an APPROVE code review for this exact staged draft.");
+  applyDraft(required(process.env.PROJECT_SOURCE_ROOT, "PROJECT_SOURCE_ROOT"), draft);
+  return "Approved test draft applied.";
 }

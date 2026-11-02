@@ -10,6 +10,8 @@ export const actionKinds = [
   "DESIGN_TESTS",
   "DISCOVER_AUTOMATION",
   "GENERATE_DRAFT",
+  "PREVIEW_DRAFT",
+  "APPLY_DRAFT",
   "REVIEW_CODE",
   "SHOW_STATUS",
   "APPROVE_STAGE",
@@ -33,6 +35,8 @@ export interface WorkflowActivities {
   designTests?: (issueKey: string) => Promise<string>;
   discoverAutomation?: (issueKey: string) => Promise<string>;
   generateDraft?: (issueKey: string) => Promise<string>;
+  previewDraft?: (issueKey: string) => Promise<string>;
+  applyDraft?: (issueKey: string) => Promise<string>;
   reviewCode?: (issueKey: string) => Promise<string>;
 }
 
@@ -122,6 +126,12 @@ export class ChatService {
       case "GENERATE_DRAFT":
         if (!this.activities?.generateDraft) throw new Error("No draft generation executor is registered.");
         return this.activities.generateDraft(issueKey);
+      case "PREVIEW_DRAFT":
+        if (!this.activities?.previewDraft) throw new Error("No draft preview executor is registered.");
+        return this.activities.previewDraft(issueKey);
+      case "APPLY_DRAFT":
+        if (!this.activities?.applyDraft) throw new Error("No draft application executor is registered.");
+        return this.activities.applyDraft(issueKey);
       case "REVIEW_CODE":
         if (!this.activities?.reviewCode) throw new Error("No code review executor is registered.");
         return this.activities.reviewCode(issueKey);
