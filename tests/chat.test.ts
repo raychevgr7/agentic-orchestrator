@@ -57,6 +57,16 @@ describe("ChatService", () => {
     await expect(chat.respond("yes")).resolves.toBe("Discovery complete for DEMO-11.");
     store.close();
   });
+
+  it("runs code review only after confirmation", async () => {
+    const { chat, store } = createChat({ kind: "REVIEW_CODE", issueKey: "DEMO-12", explanation: "I can review the staged code." }, {
+      reviewCode: async (issueKey: string) => `Code review complete for ${issueKey}.`,
+    });
+    await chat.respond("Review the code for DEMO-12");
+    await expect(chat.respond("yes")).resolves.toBe("Code review complete for DEMO-12.");
+    expect(store.getPendingAction()).toBeUndefined();
+    store.close();
+  });
 });
 
 function createChat(action: ChatAction, activities?: WorkflowActivities) {

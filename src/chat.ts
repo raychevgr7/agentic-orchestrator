@@ -9,6 +9,7 @@ export const actionKinds = [
   "ANALYZE_ISSUE",
   "DESIGN_TESTS",
   "DISCOVER_AUTOMATION",
+  "REVIEW_CODE",
   "SHOW_STATUS",
   "APPROVE_STAGE",
   "ADD_FEEDBACK",
@@ -30,6 +31,7 @@ export interface WorkflowActivities {
   analyzeIssue?: (issueKey: string) => Promise<string>;
   designTests?: (issueKey: string) => Promise<string>;
   discoverAutomation?: (issueKey: string) => Promise<string>;
+  reviewCode?: (issueKey: string) => Promise<string>;
 }
 
 export class OpenAIActionInterpreter implements ActionInterpreter {
@@ -115,6 +117,9 @@ export class ChatService {
       case "DISCOVER_AUTOMATION":
         if (!this.activities?.discoverAutomation) throw new Error("No automation discovery executor is registered.");
         return this.activities.discoverAutomation(issueKey);
+      case "REVIEW_CODE":
+        if (!this.activities?.reviewCode) throw new Error("No code review executor is registered.");
+        return this.activities.reviewCode(issueKey);
       default:
         return "That request cannot be executed through chat yet.";
     }

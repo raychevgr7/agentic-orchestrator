@@ -58,6 +58,7 @@ try {
       const analysisService = new JiraAnalysisService(store, new McpJiraIssueReader(process.env.JIRA_MCP_URL ?? "http://127.0.0.1:3001/mcp"), new OpenAIJiraAnalyst(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
       const testDesignService = new TestDesignService(store, new OpenAITestPlanner(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
       const discoveryService = new AutomationDiscoveryService(store, new McpProjectDiscoverer(process.env.PROJECT_MCP_URL ?? "http://127.0.0.1:3002/mcp"), new OpenAIAutomationDecider(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
+      const codeReviewService = new CodeReviewService(store, new OpenAICodeReviewer(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
       const chat = new ChatService(store, new OpenAIActionInterpreter(), {
         analyzeIssue: async (issueKey) => {
           const result = await analysisService.run(issueKey);
@@ -70,6 +71,10 @@ try {
         discoverAutomation: async (issueKey) => {
           const result = await discoveryService.run(issueKey);
           return `Automation decision saved to ${result.artifactPath}.`;
+        },
+        reviewCode: async (issueKey) => {
+          const result = await codeReviewService.run(issueKey);
+          return `Code review ${result.verdict}: ${result.artifactPath}.`;
         },
       });
       console.log(await chat.respond(message));
