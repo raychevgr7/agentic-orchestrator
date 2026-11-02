@@ -26,6 +26,7 @@ export function approveStage(workflow: Workflow, expectedStage: WorkflowStage, n
   }
 
   const currentIndex = workflowStages.indexOf(workflow.stage);
+  if (currentIndex < 0) throw new Error(`Workflow has an unsupported stage: ${workflow.stage}.`);
   const stage = workflowStages[currentIndex + 1] ?? "COMPLETE";
   return updated(workflow, stage, stage === "COMPLETE" ? "COMPLETE" : "PENDING_APPROVAL", now);
 }

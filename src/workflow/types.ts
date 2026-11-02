@@ -7,7 +7,6 @@ export const workflowStages = [
   "LOCAL_TESTS",
   "PULL_REQUEST",
   "CI_ANALYSIS",
-  "ISSUE_COMMENT",
   "COMPLETE",
 ] as const;
 

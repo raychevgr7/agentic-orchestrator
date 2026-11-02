@@ -54,6 +54,7 @@ export class SqliteWorkflowStore implements WorkflowStore {
     ]) {
       try { this.database.exec(statement); } catch { /* existing database already migrated */ }
     }
+    this.database.exec("UPDATE workflows SET stage = 'COMPLETE', status = 'COMPLETE' WHERE stage = 'ISSUE_COMMENT'");
   }
 
   public create(workflow: Workflow): void {

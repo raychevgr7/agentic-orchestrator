@@ -14,6 +14,7 @@ import { CiAnalysisService, OpenAICiAnalyst } from "./ci/ci-analysis.js";
 import { JenkinsCiProvider } from "./ci/jenkins-provider.js";
 import { LocalTestsService } from "./testing/local-tests.js";
 import { applyDraft, draftFingerprint, markDraftPreviewed, previewDraft, stageDraft, type StagedTestDraft, wasDraftPreviewed } from "./code-changes/staged-draft.js";
+import { FeatureBranchService } from "./code-changes/git-branch.js";
 import { addFeedback, approveStage, createWorkflow, recoverWorkflow } from "./workflow/lifecycle.js";
 import { SqliteWorkflowStore } from "./workflow/store.js";
 import { workflowStages, type WorkflowStage } from "./workflow/types.js";
@@ -234,6 +235,16 @@ function applyDraftForWorkflow(workflow: ReturnType<typeof find>): string {
   const draft = loadDraft(workflow.issueKey, workflow.id);
   if (!wasDraftPreviewed(process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts", workflow.issueKey, workflow.id, draft)) throw new Error("Preview this exact draft before applying it.");
   if (workflow.reviewVerdict !== "APPROVE" || workflow.draftFingerprint !== draftFingerprint(draft) || workflow.draftFingerprint !== workflow.reviewedDraftFingerprint) throw new Error("Apply requires an APPROVE code review for this exact staged draft.");
-  applyDraft(required(process.env.PROJECT_SOURCE_ROOT, "PROJECT_SOURCE_ROOT"), draft);
-  return "Approved test draft applied.";
+  const root = required(process.env.PROJECT_SOURCE_ROOT, "PROJECT_SOURCE_ROOT");
+  const branch = new FeatureBranchService(root).ensure(workflow.issueKey, ticketSummaryForWorkflow(workflow), process.env.PROJECT_BASE_BRANCH?.trim() || "master");
+  applyDraft(root, draft);
+  return `Approved test draft applied on branch ${branch}.`;
+}
+
+function ticketSummaryForWorkflow(workflow: ReturnType<typeof find>): string {
+  const path = join(resolve(process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts"), workflow.issueKey, workflow.id, "issue-analysis-context.json");
+  const value = JSON.parse(readFileSync(path, "utf8")) as { primaryIssue?: { fields?: { summary?: unknown } } };
+  const summary = value.primaryIssue?.fields?.summary;
+  if (typeof summary !== "string" || !summary.trim()) throw new Error("Issue analysis context does not contain the ticket summary required for branch naming.");
+  return summary;
 }
