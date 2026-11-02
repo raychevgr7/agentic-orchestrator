@@ -24,6 +24,10 @@ ISSUE_ANALYSIS → TEST_PLAN → PROJECT_DISCOVERY → CODE_CHANGE → LOCAL_TES
 
 The included stages are generic: integrations such as Jira, Jenkins, GitHub/GitLab, and a local project are optional adapters configured by the person running the project.
 
+## Flaky-test gate
+
+`TEST_SUCCESS_REPETITIONS` defines the required targeted-test repetition policy and is passed into the Engineer proposal. Runtime enforcement will be enabled with the forthcoming `LOCAL_TESTS` executor; until then, no workflow stage claims that the flaky-test gate has executed.
+
 The first working agent is `jira-analyst`. With `jira-mcp` running and OpenAI configuration present in `.env`, run:
 
 ```bash

@@ -4,6 +4,7 @@ import { ChatService, OpenAIActionInterpreter } from "./chat.js";
 import { JiraAnalysisService, McpJiraIssueReader, OpenAIJiraAnalyst } from "./agents/jira-analyst.js";
 import { OpenAITestPlanner, TestDesignService } from "./agents/test-designer.js";
 import { AutomationDiscoveryService, McpProjectDiscoverer, OpenAIAutomationDecider } from "./agents/automation-designer.js";
+import { EngineerPlanningService, OpenAIEngineerPlanner } from "./agents/engineer.js";
 import { addFeedback, approveStage, createWorkflow, recoverWorkflow } from "./workflow/lifecycle.js";
 import { SqliteWorkflowStore } from "./workflow/store.js";
 import { workflowStages, type WorkflowStage } from "./workflow/types.js";
@@ -78,6 +79,11 @@ try {
       const result = await service.run(required(identifier, "workflow ID or issue key"));
       console.log(`Automation decision saved to ${result.artifactPath}.`); break;
     }
+    case "propose": {
+      const service = new EngineerPlanningService(store, new OpenAIEngineerPlanner(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
+      const result = await service.run(required(identifier, "workflow ID or issue key"));
+      console.log(`Implementation proposal saved to ${result.artifactPath}.`); break;
+    }
     case "analyze": {
       const service = new JiraAnalysisService(store, new McpJiraIssueReader(process.env.JIRA_MCP_URL ?? "http://127.0.0.1:3001/mcp"), new OpenAIJiraAnalyst(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
       const result = await service.run(required(identifier, "workflow ID or issue key"), { includeParent: process.argv.includes("--with-parent"), includeSubtasks: process.argv.includes("--with-subtasks"), includeRelated: process.argv.includes("--with-related") });
@@ -118,5 +124,5 @@ function print(value: unknown): void {
 }
 
 function usage(): void {
-  console.error("Usage: npm run workflow -- start|analyze|design|discover|status|approve|recover|feedback <issue-key-or-id> [stage|message] | chat <free text>\n  analyze options: --with-parent --with-subtasks --with-related");
+  console.error("Usage: npm run workflow -- start|analyze|design|discover|propose|status|approve|recover|feedback <issue-key-or-id> [stage|message] | chat <free text>\n  analyze options: --with-parent --with-subtasks --with-related");
 }
