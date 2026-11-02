@@ -16,6 +16,7 @@ export const actionKinds = [
   "REVIEW_CODE",
   "VERIFY_TESTS",
   "PREPARE_PULL_REQUEST",
+  "ANALYZE_CI",
   "SHOW_STATUS",
   "APPROVE_STAGE",
   "ADD_FEEDBACK",
@@ -43,6 +44,7 @@ export interface WorkflowActivities {
   reviewCode?: (issueKey: string) => Promise<string>;
   verifyTests?: (issueKey: string, testTarget: string) => Promise<string>;
   preparePullRequest?: (issueKey: string) => Promise<string>;
+  analyzeCi?: (issueKey: string, buildNumber: string) => Promise<string>;
 }
 
 export class OpenAIActionInterpreter implements ActionInterpreter {
@@ -148,6 +150,11 @@ export class ChatService {
       case "PREPARE_PULL_REQUEST":
         if (!this.activities?.preparePullRequest) throw new Error("No pull request preparation executor is registered.");
         return this.activities.preparePullRequest(issueKey);
+      case "ANALYZE_CI":
+        if (!action.ciBuildNumber) throw new Error("The requested CI analysis did not include a build number.");
+        if (!isSafeCiBuildNumber(action.ciBuildNumber)) throw new Error("The requested CI build number is not safe.");
+        if (!this.activities?.analyzeCi) throw new Error("No CI analysis executor is registered.");
+        return this.activities.analyzeCi(issueKey, action.ciBuildNumber);
       default:
         return "That request cannot be executed through chat yet.";
     }
@@ -168,12 +175,16 @@ function validateAction(value: unknown): ChatAction {
   if (stage && !workflowStages.includes(stage)) throw new Error("Chat interpretation returned an unsupported workflow stage.");
   const testTarget = typeof value.testTarget === "string" ? value.testTarget : undefined;
   if (testTarget && !isRepositoryRelativeTestTarget(testTarget)) throw new Error("Chat interpretation returned an unsafe test target.");
-  return { kind: value.kind as ChatActionKind, issueKey, stage, feedback: typeof value.feedback === "string" ? value.feedback : undefined, testTarget, explanation: String(value.explanation ?? "") };
+  const ciBuildNumber = typeof value.ciBuildNumber === "string" ? value.ciBuildNumber : undefined;
+  if (ciBuildNumber && !isSafeCiBuildNumber(ciBuildNumber)) throw new Error("Chat interpretation returned an unsafe CI build number.");
+  return { kind: value.kind as ChatActionKind, issueKey, stage, feedback: typeof value.feedback === "string" ? value.feedback : undefined, testTarget, ciBuildNumber, explanation: String(value.explanation ?? "") };
 }
 
 function describe(action: ChatAction): string {
-  return `${action.kind}${action.issueKey ? ` for ${action.issueKey}` : ""}${action.stage ? ` at ${action.stage}` : ""}${action.testTarget ? ` (${action.testTarget})` : ""}`;
+  return `${action.kind}${action.issueKey ? ` for ${action.issueKey}` : ""}${action.stage ? ` at ${action.stage}` : ""}${action.testTarget ? ` (${action.testTarget})` : ""}${action.ciBuildNumber ? ` (#${action.ciBuildNumber})` : ""}`;
 }
+
+function isSafeCiBuildNumber(value: string): boolean { return /^\d+$/.test(value) && Number(value) >= 1; }
 
 function isConfirmation(message: string): boolean { return /^(yes|confirm|ok)$/i.test(message); }
 function isCancellation(message: string): boolean { return /^(no|cancel|stop)$/i.test(message); }

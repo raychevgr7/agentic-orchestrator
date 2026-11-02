@@ -110,6 +110,15 @@ describe("ChatService", () => {
     await expect(chat.respond("yes")).resolves.toBe("PR description prepared for DEMO-16.");
     store.close();
   });
+
+  it("analyzes an explicitly supplied CI build only after confirmation", async () => {
+    const { chat, store } = createChat({ kind: "ANALYZE_CI", issueKey: "DEMO-17", ciBuildNumber: "42", explanation: "I can analyze the CI build." }, {
+      analyzeCi: async (issueKey, buildNumber) => `CI #${buildNumber} analyzed for ${issueKey}.`,
+    });
+    await expect(chat.respond("Analyze CI build 42 for DEMO-17")).resolves.toContain("ANALYZE_CI for DEMO-17 (#42)");
+    await expect(chat.respond("yes")).resolves.toBe("CI #42 analyzed for DEMO-17.");
+    store.close();
+  });
 });
 
 function createChat(action: ChatAction, activities?: WorkflowActivities) {

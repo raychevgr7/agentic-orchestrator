@@ -26,3 +26,4 @@ export function loadEngineerRule(): string {
 export function loadEngineerDraftRule(): string { return readFileSync(join(rulesDirectory, "engineer-draft.md"), "utf8").trim(); }
 export function loadCodeReviewerRule(): string { return readFileSync(join(rulesDirectory, "code-reviewer.md"), "utf8").trim(); }
 export function loadPullRequestRule(): string { return readFileSync(join(rulesDirectory, "pull-request.md"), "utf8").trim(); }
+export function loadCiAnalystRule(): string { return readFileSync(join(rulesDirectory, "ci-analyst.md"), "utf8").trim(); }

@@ -10,6 +10,8 @@ import { EngineerPlanningService, OpenAIEngineerPlanner } from "./agents/enginee
 import { OpenAIEngineerDraftGenerator } from "./agents/engineer.js";
 import { CodeReviewService, OpenAICodeReviewer } from "./agents/code-reviewer.js";
 import { OpenAIPullRequestWriter, PullRequestPreparationService } from "./agents/pull-request.js";
+import { CiAnalysisService, OpenAICiAnalyst } from "./ci/ci-analysis.js";
+import { JenkinsCiProvider } from "./ci/jenkins-provider.js";
 import { LocalTestsService } from "./testing/local-tests.js";
 import { applyDraft, draftFingerprint, markDraftPreviewed, previewDraft, stageDraft, type StagedTestDraft, wasDraftPreviewed } from "./code-changes/staged-draft.js";
 import { addFeedback, approveStage, createWorkflow, recoverWorkflow } from "./workflow/lifecycle.js";
@@ -89,6 +91,11 @@ try {
           const result = await pullRequestService.run(issueKey);
           return `Pull request description saved to ${result.artifactPath}.`;
         },
+        analyzeCi: async (issueKey, buildNumber) => {
+          const { provider, jobPath } = jenkinsFromEnvironment();
+          const result = await new CiAnalysisService(store, provider, new OpenAICiAnalyst(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts", jobPath).run(issueKey, buildNumber);
+          return `CI analysis (${result.status}) saved to ${result.artifactPath}.`;
+        },
       });
       console.log(await chat.respond(message));
       break;
@@ -145,6 +152,12 @@ try {
       console.log(`Issue analysis saved to ${result.artifactPath}.`);
       break;
     }
+    case "analyze-ci": {
+      const { provider, jobPath } = jenkinsFromEnvironment();
+      const result = await new CiAnalysisService(store, provider, new OpenAICiAnalyst(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts", jobPath)
+        .run(required(identifier, "workflow ID or issue key"), required(argument, "Jenkins build number"));
+      console.log(`CI analysis (${result.status}) saved to ${result.artifactPath}.`); break;
+    }
     default:
       usage();
       process.exitCode = 1;
@@ -179,7 +192,15 @@ function print(value: unknown): void {
 }
 
 function usage(): void {
-  console.error("Usage: npm run workflow -- start|analyze|design|discover|propose|generate-draft|review|prepare-pr|verify|stage-draft|preview-draft|apply-draft|status|approve|recover|feedback <issue-key-or-id> [stage|message] | chat <free text>\n  analyze options: --with-parent --with-subtasks --with-related");
+  console.error("Usage: npm run workflow -- start|analyze|design|discover|propose|generate-draft|review|prepare-pr|analyze-ci|verify|stage-draft|preview-draft|apply-draft|status|approve|recover|feedback <issue-key-or-id> [stage|message] | chat <free text>\n  analyze options: --with-parent --with-subtasks --with-related");
+}
+
+function jenkinsFromEnvironment(): { provider: JenkinsCiProvider; jobPath: string } {
+  return { provider: new JenkinsCiProvider({
+    baseUrl: required(process.env.JENKINS_BASE_URL, "JENKINS_BASE_URL"),
+    username: required(process.env.JENKINS_USERNAME, "JENKINS_USERNAME"),
+    apiToken: required(process.env.JENKINS_API_TOKEN, "JENKINS_API_TOKEN"),
+  }), jobPath: required(process.env.JENKINS_DEFAULT_JOB_PATH, "JENKINS_DEFAULT_JOB_PATH") };
 }
 
 function loadDraft(issueKey: string, workflowId: string): StagedTestDraft {

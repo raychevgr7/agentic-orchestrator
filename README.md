@@ -69,6 +69,7 @@ Review the code for PROJECT-123
 Apply draft for PROJECT-123
 Run tests/login.spec.ts for PROJECT-123
 Prepare a pull request for PROJECT-123
+Analyze CI build 42 for PROJECT-123
 Approve CODE_REVIEW for PROJECT-123
 ```
 
@@ -93,9 +94,12 @@ npm run workflow -- approve PROJECT-123 CODE_REVIEW
 npm run workflow -- apply-draft PROJECT-123 --confirm
 npm run workflow -- verify PROJECT-123 tests/login.spec.ts
 npm run workflow -- prepare-pr PROJECT-123
+npm run workflow -- analyze-ci PROJECT-123 42
 ```
 
 `prepare-pr` creates `pull-request-description.md` from the implementation, review, and targeted-test artifacts. It never creates a branch, pushes code, or opens a real pull request; those Git provider integrations remain opt-in future adapters.
+
+`analyze-ci` is read-only: it retrieves one explicit Jenkins build number from `JENKINS_DEFAULT_JOB_PATH`, writes `ci-build-report.json` and `ci-analysis.md`, then returns the workflow to its approval gate. It supports successful, failed, and running builds without claiming a passing result prematurely.
 
 If targeted validation fails, the workflow becomes `REJECTED`. Review the artifact, then explicitly retry it:
 

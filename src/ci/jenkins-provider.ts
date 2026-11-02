@@ -1,4 +1,5 @@
 import type { CiBuildReport, CiBuildStatus, CiProvider } from "./provider.js";
+import { sanitizeCiLog } from "./log-sanitizer.js";
 
 export interface JenkinsProviderConfig { baseUrl: string; username: string; apiToken: string; }
 
@@ -12,7 +13,7 @@ export class JenkinsCiProvider implements CiProvider {
     const status = statusOf(build.result, build.building);
     const timestamp = typeof build.timestamp === "number" ? new Date(build.timestamp).toISOString() : undefined;
     const duration = typeof build.duration === "number" ? build.duration : undefined;
-    return { provider: "jenkins", reference, status, buildUrl, startedAt: timestamp, finishedAt: timestamp && duration !== undefined && !build.building ? new Date(new Date(timestamp).getTime() + duration).toISOString() : undefined, logs: logs.slice(-100_000), testResults: { total: numberOf(report?.totalCount), failed: numberOf(report?.failCount), skipped: numberOf(report?.skipCount) } };
+    return { provider: "jenkins", reference, status, buildUrl, startedAt: timestamp, finishedAt: timestamp && duration !== undefined && !build.building ? new Date(new Date(timestamp).getTime() + duration).toISOString() : undefined, logs: sanitizeCiLog(logs), testResults: { total: numberOf(report?.totalCount), failed: numberOf(report?.failCount), skipped: numberOf(report?.skipCount) } };
   }
   private async json(url: string): Promise<Record<string, unknown>> { const response = await this.fetcher(url, { headers: this.headers() }); if (!response.ok) throw new Error(`Jenkins read failed with HTTP ${response.status}.`); return await response.json() as Record<string, unknown>; }
   private async optionalJson(url: string): Promise<Record<string, unknown> | undefined> { const response = await this.fetcher(url, { headers: this.headers() }); if (response.status === 404) return undefined; if (!response.ok) throw new Error(`Jenkins test report read failed with HTTP ${response.status}.`); return await response.json() as Record<string, unknown>; }

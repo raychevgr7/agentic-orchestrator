@@ -9,6 +9,7 @@ export interface PendingAction {
   stage?: string;
   feedback?: string;
   testTarget?: string;
+  ciBuildNumber?: string;
   explanation: string;
 }
 
