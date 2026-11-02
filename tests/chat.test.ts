@@ -48,6 +48,15 @@ describe("ChatService", () => {
     expect(store.getPendingAction()).toBeUndefined();
     store.close();
   });
+
+  it("runs automation discovery only after confirmation", async () => {
+    const { chat, store } = createChat({ kind: "DISCOVER_AUTOMATION", issueKey: "DEMO-11", explanation: "I can inspect automation." }, {
+      discoverAutomation: async (issueKey: string) => `Discovery complete for ${issueKey}.`,
+    });
+    await chat.respond("Discover automation for DEMO-11");
+    await expect(chat.respond("yes")).resolves.toBe("Discovery complete for DEMO-11.");
+    store.close();
+  });
 });
 
 function createChat(action: ChatAction, activities?: WorkflowActivities) {

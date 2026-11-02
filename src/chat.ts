@@ -29,6 +29,7 @@ export interface ActionInterpreter {
 export interface WorkflowActivities {
   analyzeIssue?: (issueKey: string) => Promise<string>;
   designTests?: (issueKey: string) => Promise<string>;
+  discoverAutomation?: (issueKey: string) => Promise<string>;
 }
 
 export class OpenAIActionInterpreter implements ActionInterpreter {
@@ -112,7 +113,8 @@ export class ChatService {
         if (!this.activities?.designTests) throw new Error("No test design executor is registered.");
         return this.activities.designTests(issueKey);
       case "DISCOVER_AUTOMATION":
-        return `The ${action.kind} agent is not registered yet. No external action was performed.`;
+        if (!this.activities?.discoverAutomation) throw new Error("No automation discovery executor is registered.");
+        return this.activities.discoverAutomation(issueKey);
       default:
         return "That request cannot be executed through chat yet.";
     }

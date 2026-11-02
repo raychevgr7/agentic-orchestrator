@@ -15,3 +15,7 @@ export function loadJiraAnalystRule(): string {
 export function loadTestDesignerRule(): string {
   return readFileSync(join(rulesDirectory, "test-designer.md"), "utf8").trim();
 }
+
+export function loadAutomationDesignerRule(): string {
+  return readFileSync(join(rulesDirectory, "automation-designer.md"), "utf8").trim();
+}
