@@ -45,7 +45,13 @@ export class SqliteWorkflowStore implements WorkflowStore {
         created_at TEXT NOT NULL
       );
     `);
-    try { this.database.exec("ALTER TABLE workflows ADD COLUMN review_verdict TEXT"); } catch { /* existing database already migrated */ }
+    for (const statement of [
+      "ALTER TABLE workflows ADD COLUMN review_verdict TEXT",
+      "ALTER TABLE workflows ADD COLUMN draft_fingerprint TEXT",
+      "ALTER TABLE workflows ADD COLUMN reviewed_draft_fingerprint TEXT",
+    ]) {
+      try { this.database.exec(statement); } catch { /* existing database already migrated */ }
+    }
   }
 
   public create(workflow: Workflow): void {
@@ -68,9 +74,12 @@ export class SqliteWorkflowStore implements WorkflowStore {
   public save(workflow: Workflow): void {
     const result = this.database.prepare(`
       UPDATE workflows
-      SET stage = @stage, status = @status, updated_at = @updatedAt, feedback = @feedback, review_verdict = @reviewVerdict
+      SET stage = @stage, status = @status, updated_at = @updatedAt, feedback = @feedback,
+        review_verdict = @reviewVerdict, draft_fingerprint = @draftFingerprint,
+        reviewed_draft_fingerprint = @reviewedDraftFingerprint
       WHERE id = @id
-    `).run({ ...workflow, feedback: workflow.feedback ?? null, reviewVerdict: workflow.reviewVerdict ?? null });
+    `).run({ ...workflow, feedback: workflow.feedback ?? null, reviewVerdict: workflow.reviewVerdict ?? null,
+      draftFingerprint: workflow.draftFingerprint ?? null, reviewedDraftFingerprint: workflow.reviewedDraftFingerprint ?? null });
     if (result.changes !== 1) throw new Error(`Workflow '${workflow.id}' was not found.`);
   }
 
@@ -106,6 +115,8 @@ interface WorkflowRow {
   updated_at: string;
   feedback: string | null;
   review_verdict?: ReviewVerdict | null;
+  draft_fingerprint?: string | null;
+  reviewed_draft_fingerprint?: string | null;
 }
 
 function mapWorkflow(row: WorkflowRow): Workflow {
@@ -118,5 +129,7 @@ function mapWorkflow(row: WorkflowRow): Workflow {
     updatedAt: row.updated_at,
     feedback: row.feedback ?? undefined,
     reviewVerdict: row.review_verdict ?? undefined,
+    draftFingerprint: row.draft_fingerprint ?? undefined,
+    reviewedDraftFingerprint: row.reviewed_draft_fingerprint ?? undefined,
   };
 }

@@ -10,7 +10,7 @@ import { EngineerPlanningService, OpenAIEngineerPlanner } from "./agents/enginee
 import { OpenAIEngineerDraftGenerator } from "./agents/engineer.js";
 import { CodeReviewService, OpenAICodeReviewer } from "./agents/code-reviewer.js";
 import { LocalTestsService } from "./testing/local-tests.js";
-import { applyDraft, markDraftPreviewed, previewDraft, stageDraft, type StagedTestDraft, wasDraftPreviewed } from "./code-changes/staged-draft.js";
+import { applyDraft, draftFingerprint, markDraftPreviewed, previewDraft, stageDraft, type StagedTestDraft, wasDraftPreviewed } from "./code-changes/staged-draft.js";
 import { addFeedback, approveStage, createWorkflow, recoverWorkflow } from "./workflow/lifecycle.js";
 import { SqliteWorkflowStore } from "./workflow/store.js";
 import { workflowStages, type WorkflowStage } from "./workflow/types.js";
@@ -98,14 +98,15 @@ try {
     case "stage-draft": {
       const workflow = find(required(identifier, "workflow ID or issue key"));
       const testPath = required(argument, "test file path"); const contentFile = required(process.argv[4], "draft content file");
-      const artifactPath = stageDraft(process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts", workflow.issueKey, workflow.id, { path: testPath, content: readFileSync(contentFile, "utf8") });
-      store.save({ ...workflow, reviewVerdict: undefined, updatedAt: new Date().toISOString() });
+      const draft = { path: testPath, content: readFileSync(contentFile, "utf8") };
+      const artifactPath = stageDraft(process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts", workflow.issueKey, workflow.id, draft);
+      store.save({ ...workflow, reviewVerdict: undefined, draftFingerprint: draftFingerprint(draft), reviewedDraftFingerprint: undefined, updatedAt: new Date().toISOString() });
       console.log(`Staged draft saved to ${artifactPath}.`); break;
     }
     case "generate-draft": {
       const workflow = find(required(identifier, "workflow ID or issue key")); const root = process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts";
       const proposal = readFileSync(join(resolve(root), workflow.issueKey, workflow.id, "implementation-proposal.md"), "utf8"); const draft = await new OpenAIEngineerDraftGenerator().generate(proposal);
-      console.log(`Staged draft saved to ${stageDraft(root, workflow.issueKey, workflow.id, draft)}.`); store.save({ ...workflow, reviewVerdict: undefined, updatedAt: new Date().toISOString() }); break;
+      console.log(`Staged draft saved to ${stageDraft(root, workflow.issueKey, workflow.id, draft)}.`); store.save({ ...workflow, reviewVerdict: undefined, draftFingerprint: draftFingerprint(draft), reviewedDraftFingerprint: undefined, updatedAt: new Date().toISOString() }); break;
     }
     case "review": {
       const service = new CodeReviewService(store, new OpenAICodeReviewer(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
@@ -119,6 +120,7 @@ try {
       if (!process.argv.includes("--confirm")) throw new Error("Preview the draft first, then rerun with --confirm to apply it.");
       const workflow = find(required(identifier, "workflow ID or issue key")); const draft = loadDraft(workflow.issueKey, workflow.id);
       if (!wasDraftPreviewed(process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts", workflow.issueKey, workflow.id, draft)) throw new Error("Preview this exact draft before applying it.");
+      if (workflow.reviewVerdict !== "APPROVE" || workflow.draftFingerprint !== draftFingerprint(draft) || workflow.draftFingerprint !== workflow.reviewedDraftFingerprint) throw new Error("Apply requires an APPROVE code review for this exact staged draft.");
       applyDraft(required(process.env.PROJECT_SOURCE_ROOT, "PROJECT_SOURCE_ROOT"), draft); console.log("Approved test draft applied."); break;
     }
     case "analyze": {

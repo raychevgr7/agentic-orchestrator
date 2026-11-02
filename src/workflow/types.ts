@@ -25,4 +25,6 @@ export interface Workflow {
   updatedAt: string;
   feedback?: string;
   reviewVerdict?: ReviewVerdict;
+  draftFingerprint?: string;
+  reviewedDraftFingerprint?: string;
 }

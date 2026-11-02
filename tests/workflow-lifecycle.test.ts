@@ -17,6 +17,12 @@ describe("workflow lifecycle", () => {
     expect(() => approveStage(workflow, "TEST_PLAN")).toThrow("Workflow is waiting at ISSUE_ANALYSIS");
   });
 
+  it("requires an APPROVE verdict bound to the current draft at code review", () => {
+    const workflow = { ...createWorkflow("DEMO-42", createdAt), stage: "CODE_REVIEW" as const, reviewVerdict: "APPROVE" as const, draftFingerprint: "new-draft", reviewedDraftFingerprint: "old-draft" };
+    expect(() => approveStage(workflow, "CODE_REVIEW")).toThrow("current staged draft");
+    expect(approveStage({ ...workflow, reviewedDraftFingerprint: "new-draft" }, "CODE_REVIEW")).toMatchObject({ stage: "LOCAL_TESTS" });
+  });
+
   it("can recover an interrupted stage without advancing it", () => {
     const workflow = createWorkflow("DEMO-42", createdAt);
     const running = markRunning(workflow, "ISSUE_ANALYSIS");

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join, resolve } from "node:path";
 import { ApprovedTestWriter } from "../project-mcp/writer.js";
@@ -7,7 +7,12 @@ export interface StagedTestDraft { path: string; content: string; }
 
 export function stageDraft(artifactsRoot: string, issueKey: string, workflowId: string, draft: StagedTestDraft): string {
   const path = join(resolve(artifactsRoot), issueKey, workflowId, "staged-test-draft.json");
+  mkdirSync(join(resolve(artifactsRoot), issueKey, workflowId), { recursive: true });
   writeFileSync(path, JSON.stringify(draft, null, 2), "utf8"); return path;
+}
+
+export function draftFingerprint(draft: StagedTestDraft): string {
+  return createHash("sha256").update(JSON.stringify(draft)).digest("hex");
 }
 
 export function previewDraft(projectRoot: string, draft: StagedTestDraft): string {
@@ -25,4 +30,4 @@ export function wasDraftPreviewed(artifactsRoot: string, issueKey: string, workf
   const marker = join(resolve(artifactsRoot), issueKey, workflowId, "staged-test-draft.preview");
   return existsSync(marker) && readFileSync(marker, "utf8") === fingerprint(draft);
 }
-function fingerprint(draft: StagedTestDraft): string { return createHash("sha256").update(JSON.stringify(draft)).digest("hex"); }
+const fingerprint = draftFingerprint;
