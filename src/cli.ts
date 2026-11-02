@@ -79,6 +79,10 @@ try {
           const result = await codeReviewService.run(issueKey);
           return `Code review ${result.verdict}: ${result.artifactPath}.`;
         },
+        verifyTests: async (issueKey, testTarget) => {
+          const result = await new LocalTestsService(store, process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts").run(issueKey, testTarget);
+          return `Targeted test validation ${result.passed ? "passed" : "failed"}: ${result.artifactPath}`;
+        },
       });
       console.log(await chat.respond(message));
       break;

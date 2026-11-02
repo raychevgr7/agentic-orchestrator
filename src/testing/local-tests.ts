@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { loadTestExecutionPolicy } from "./execution-policy.js";
@@ -8,7 +8,7 @@ import { markRunning, recoverWorkflow } from "../workflow/lifecycle.js";
 export class LocalTestsService {
   public constructor(private readonly store: WorkflowStore, private readonly artifactsRoot: string, private readonly execute: (command: string) => Promise<number> = runCommand) {}
   public async run(idOrIssueKey: string, target: string): Promise<{ passed: boolean; artifactPath: string }> {
-    if (!/^[A-Za-z0-9_./-]+$/.test(target)) throw new Error("Test target must be a repository-relative path without spaces or shell characters.");
+    assertSafeTestTarget(target, process.env.PROJECT_SOURCE_ROOT);
     const workflow = this.store.find(idOrIssueKey); if (!workflow) throw new Error(`Workflow '${idOrIssueKey}' was not found.`);
     const running = markRunning(workflow, "LOCAL_TESTS"); this.store.save(running);
     const template = process.env.PROJECT_TEST_COMMAND_TEMPLATE?.trim(); if (!template?.includes("{test}")) { this.store.save(recoverWorkflow(running)); throw new Error("PROJECT_TEST_COMMAND_TEMPLATE must include {test}."); }
@@ -18,6 +18,22 @@ export class LocalTestsService {
     const passed = outcomes.length === policy.requiredConsecutiveSuccesses && outcomes.every(code => code === 0); writeFileSync(artifactPath, JSON.stringify({ target, command, requiredConsecutiveSuccesses: policy.requiredConsecutiveSuccesses, outcomes, passed }, null, 2));
     this.store.save(passed ? recoverWorkflow(running) : { ...running, status: "REJECTED", updatedAt: new Date().toISOString(), feedback: "Targeted test validation failed; inspect targeted-test-results.json before retrying." });
     return { passed, artifactPath };
+  }
+}
+
+export function isRepositoryRelativeTestTarget(target: string): boolean {
+  return /^[A-Za-z0-9_./-]+$/.test(target) && !target.startsWith("/") && target.split("/").every(segment => segment.length > 0 && segment !== "." && segment !== "..");
+}
+
+export function assertSafeTestTarget(target: string, projectSourceRoot: string | undefined): void {
+  if (!isRepositoryRelativeTestTarget(target)) {
+    throw new Error("Test target must be a repository-relative path without traversal, spaces, or shell characters.");
+  }
+  if (!projectSourceRoot?.trim()) throw new Error("PROJECT_SOURCE_ROOT is required to validate a test target.");
+  const root = realpathSync(projectSourceRoot);
+  const resolvedTarget = realpathSync(resolve(root, target));
+  if (resolvedTarget !== root && !resolvedTarget.startsWith(`${root}\\`) && !resolvedTarget.startsWith(`${root}/`)) {
+    throw new Error("Test target must resolve inside PROJECT_SOURCE_ROOT.");
   }
 }
 function runCommand(command: string): Promise<number> { return new Promise((resolveRun, reject) => { const process = spawn(command, { shell: true, stdio: "inherit" }); process.on("error", reject); process.on("close", code => resolveRun(code ?? 1)); }); }

@@ -92,6 +92,15 @@ describe("ChatService", () => {
     await expect(applyChat.respond("yes")).resolves.toBe("Draft applied.");
     store.close();
   });
+
+  it("runs an explicitly supplied targeted test only after confirmation", async () => {
+    const { chat, store } = createChat({ kind: "VERIFY_TESTS", issueKey: "DEMO-15", testTarget: "tests/login.spec.ts", explanation: "I can run the targeted test." }, {
+      verifyTests: async (issueKey, target) => `Validated ${target} for ${issueKey}.`,
+    });
+    await expect(chat.respond("Run tests/login.spec.ts for DEMO-15")).resolves.toContain("VERIFY_TESTS for DEMO-15 (tests/login.spec.ts)");
+    await expect(chat.respond("yes")).resolves.toBe("Validated tests/login.spec.ts for DEMO-15.");
+    store.close();
+  });
 });
 
 function createChat(action: ChatAction, activities?: WorkflowActivities) {

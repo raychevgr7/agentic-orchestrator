@@ -34,7 +34,7 @@ describe("CodeReviewService", () => {
     store.close();
   });
 
-  it("does not allow a REQUEST_CHANGES review to advance the workflow", async () => {
+  it("returns a REQUEST_CHANGES review to CODE_CHANGE for remediation", async () => {
     const root = mkdtempSync(join(tmpdir(), "code-review-reject-")); directories.push(root);
     const store = new SqliteWorkflowStore(join(root, "workflows.db"));
     const initial = createWorkflow("DEMO-16", new Date("2026-11-02T08:00:00.000Z"));
@@ -46,7 +46,10 @@ describe("CodeReviewService", () => {
 
     await new CodeReviewService(store, reviewer, join(root, "artifacts")).run(workflow.id);
 
-    expect(() => approveStage(store.find(workflow.id)!, "CODE_REVIEW")).toThrow("requires an APPROVE verdict");
+    const updated = store.find(workflow.id)!;
+    expect(updated).toMatchObject({ stage: "CODE_CHANGE", status: "PENDING_APPROVAL", reviewVerdict: "REQUEST_CHANGES" });
+    expect(updated.feedback).toContain("Code review returned REQUEST_CHANGES");
+    expect(() => approveStage(updated, "CODE_REVIEW")).toThrow("waiting at CODE_CHANGE");
     store.close();
   });
 });

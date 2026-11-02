@@ -44,6 +44,13 @@ export function recoverWorkflow(workflow: Workflow, now = new Date()): Workflow 
   return updated(workflow, workflow.stage, "PENDING_APPROVAL", now);
 }
 
+export function returnForCodeChanges(workflow: Workflow, feedback: string, now = new Date()): Workflow {
+  if (workflow.stage !== "CODE_REVIEW" || workflow.status !== "RUNNING") {
+    throw new Error("Only a running CODE_REVIEW workflow can be returned for changes.");
+  }
+  return { ...updated(workflow, "CODE_CHANGE", "PENDING_APPROVAL", now), feedback };
+}
+
 export function addFeedback(workflow: Workflow, feedback: string, now = new Date()): Workflow {
   if (workflow.status === "COMPLETE") {
     throw new Error("Feedback cannot be added to a completed workflow.");

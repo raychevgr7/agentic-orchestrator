@@ -8,6 +8,7 @@ export interface PendingAction {
   issueKey?: string;
   stage?: string;
   feedback?: string;
+  testTarget?: string;
   explanation: string;
 }
 

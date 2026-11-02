@@ -3,6 +3,7 @@ import { loadOrchestratorRule } from "./agent-rules.js";
 import { addFeedback, approveStage, createWorkflow } from "./workflow/lifecycle.js";
 import type { PendingAction, WorkflowStore } from "./workflow/store.js";
 import { workflowStages, type WorkflowStage } from "./workflow/types.js";
+import { isRepositoryRelativeTestTarget } from "./testing/local-tests.js";
 
 export const actionKinds = [
   "START_WORKFLOW",
@@ -13,6 +14,7 @@ export const actionKinds = [
   "PREVIEW_DRAFT",
   "APPLY_DRAFT",
   "REVIEW_CODE",
+  "VERIFY_TESTS",
   "SHOW_STATUS",
   "APPROVE_STAGE",
   "ADD_FEEDBACK",
@@ -38,6 +40,7 @@ export interface WorkflowActivities {
   previewDraft?: (issueKey: string) => Promise<string>;
   applyDraft?: (issueKey: string) => Promise<string>;
   reviewCode?: (issueKey: string) => Promise<string>;
+  verifyTests?: (issueKey: string, testTarget: string) => Promise<string>;
 }
 
 export class OpenAIActionInterpreter implements ActionInterpreter {
@@ -135,6 +138,11 @@ export class ChatService {
       case "REVIEW_CODE":
         if (!this.activities?.reviewCode) throw new Error("No code review executor is registered.");
         return this.activities.reviewCode(issueKey);
+      case "VERIFY_TESTS":
+        if (!action.testTarget) throw new Error("The requested test run did not include a test target.");
+        if (!isRepositoryRelativeTestTarget(action.testTarget)) throw new Error("The requested test target is not repository-relative and safe.");
+        if (!this.activities?.verifyTests) throw new Error("No local test executor is registered.");
+        return this.activities.verifyTests(issueKey, action.testTarget);
       default:
         return "That request cannot be executed through chat yet.";
     }
@@ -153,11 +161,13 @@ function validateAction(value: unknown): ChatAction {
   if (issueKey && !/^[A-Z][A-Z0-9]+-\d+$/.test(issueKey)) throw new Error("Chat interpretation returned an invalid issue key.");
   const stage = typeof value.stage === "string" ? value.stage as WorkflowStage : undefined;
   if (stage && !workflowStages.includes(stage)) throw new Error("Chat interpretation returned an unsupported workflow stage.");
-  return { kind: value.kind as ChatActionKind, issueKey, stage, feedback: typeof value.feedback === "string" ? value.feedback : undefined, explanation: String(value.explanation ?? "") };
+  const testTarget = typeof value.testTarget === "string" ? value.testTarget : undefined;
+  if (testTarget && !isRepositoryRelativeTestTarget(testTarget)) throw new Error("Chat interpretation returned an unsafe test target.");
+  return { kind: value.kind as ChatActionKind, issueKey, stage, feedback: typeof value.feedback === "string" ? value.feedback : undefined, testTarget, explanation: String(value.explanation ?? "") };
 }
 
 function describe(action: ChatAction): string {
-  return `${action.kind}${action.issueKey ? ` for ${action.issueKey}` : ""}${action.stage ? ` at ${action.stage}` : ""}`;
+  return `${action.kind}${action.issueKey ? ` for ${action.issueKey}` : ""}${action.stage ? ` at ${action.stage}` : ""}${action.testTarget ? ` (${action.testTarget})` : ""}`;
 }
 
 function isConfirmation(message: string): boolean { return /^(yes|confirm|ok|да|потвърждавам)$/i.test(message); }

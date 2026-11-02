@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addFeedback, approveStage, createWorkflow, markRunning, recoverWorkflow } from "../src/workflow/lifecycle.js";
+import { addFeedback, approveStage, createWorkflow, markRunning, recoverWorkflow, returnForCodeChanges } from "../src/workflow/lifecycle.js";
 
 const createdAt = new Date("2026-11-02T08:00:00.000Z");
 
@@ -34,6 +34,11 @@ describe("workflow lifecycle", () => {
   it("can explicitly retry a rejected stage without advancing it", () => {
     const rejected = { ...createWorkflow("DEMO-42", createdAt), stage: "LOCAL_TESTS" as const, status: "REJECTED" as const };
     expect(recoverWorkflow(rejected)).toMatchObject({ stage: "LOCAL_TESTS", status: "PENDING_APPROVAL" });
+  });
+
+  it("returns a failed code review to CODE_CHANGE with feedback", () => {
+    const runningReview = { ...createWorkflow("DEMO-42", createdAt), stage: "CODE_REVIEW" as const, status: "RUNNING" as const };
+    expect(returnForCodeChanges(runningReview, "Add a missing assertion.")).toMatchObject({ stage: "CODE_CHANGE", status: "PENDING_APPROVAL", feedback: "Add a missing assertion." });
   });
 
   it("keeps feedback at the same stage for the next approved attempt", () => {
