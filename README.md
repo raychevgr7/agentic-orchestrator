@@ -101,6 +101,19 @@ npm run workflow -- analyze-ci PROJECT-123 42
 
 `analyze-ci` is read-only: it retrieves one explicit Jenkins build number from `JENKINS_DEFAULT_JOB_PATH`, writes `ci-build-report.json` and `ci-analysis.md`, then returns the workflow to its approval gate. It supports successful, failed, and running builds without claiming a passing result prematurely.
 
+### Jenkins setup
+
+Configure a least-privilege Jenkins account with read access only, then add these local values to `.env`:
+
+```dotenv
+JENKINS_BASE_URL=https://jenkins.example.com
+JENKINS_DEFAULT_JOB_PATH=job/ui/job/main
+JENKINS_USERNAME=qa-orchestrator
+JENKINS_API_TOKEN=
+```
+
+The command takes only the build number. With the configuration above, `analyze-ci PROJECT-123 42` reads `https://jenkins.example.com/job/ui/job/main/42/`. It uses only read endpoints for build metadata, console output, and JUnit results. Console output is bounded and redacted before it is stored or sent to the model.
+
 If targeted validation fails, the workflow becomes `REJECTED`. Review the artifact, then explicitly retry it:
 
 ```bash
