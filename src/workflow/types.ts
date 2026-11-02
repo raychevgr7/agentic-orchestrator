@@ -3,6 +3,7 @@ export const workflowStages = [
   "TEST_PLAN",
   "PROJECT_DISCOVERY",
   "CODE_CHANGE",
+  "CODE_REVIEW",
   "LOCAL_TESTS",
   "PULL_REQUEST",
   "CI_ANALYSIS",
@@ -13,6 +14,7 @@ export const workflowStages = [
 export type WorkflowStage = (typeof workflowStages)[number];
 
 export type WorkflowStatus = "PENDING_APPROVAL" | "RUNNING" | "REJECTED" | "COMPLETE";
+export type ReviewVerdict = "APPROVE" | "REQUEST_CHANGES" | "BLOCKED";
 
 export interface Workflow {
   id: string;
@@ -22,4 +24,5 @@ export interface Workflow {
   createdAt: string;
   updatedAt: string;
   feedback?: string;
+  reviewVerdict?: ReviewVerdict;
 }

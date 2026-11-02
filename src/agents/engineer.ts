@@ -1,12 +1,22 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import OpenAI from "openai";
-import { loadEngineerRule } from "../agent-rules.js";
+import { loadEngineerDraftRule, loadEngineerRule } from "../agent-rules.js";
+import type { StagedTestDraft } from "../code-changes/staged-draft.js";
 import { loadTestExecutionPolicy } from "../testing/execution-policy.js";
 import { markRunning, recoverWorkflow } from "../workflow/lifecycle.js";
 import type { WorkflowStore } from "../workflow/store.js";
 
 export interface EngineerPlanner { propose(issueKey: string, decision: string, context: string): Promise<string>; }
+export interface EngineerDraftGenerator { generate(proposal: string): Promise<StagedTestDraft>; }
+export class OpenAIEngineerDraftGenerator implements EngineerDraftGenerator {
+  public async generate(proposal: string): Promise<StagedTestDraft> {
+    const apiKey = process.env.OPENAI_API_KEY?.trim(); if (!apiKey) throw new Error("OPENAI_API_KEY is missing. Add it only to your local .env file.");
+    const response = await new OpenAI({ apiKey }).responses.create({ model: process.env.OPENAI_MODEL ?? "gpt-4.1-mini", max_output_tokens: 2_000, store: false, input: [{ role: "developer", content: loadEngineerDraftRule() }, { role: "user", content: proposal.slice(0, 50_000) }] });
+    const value = JSON.parse(response.output_text) as StagedTestDraft;
+    if (!value || typeof value.path !== "string" || typeof value.content !== "string") throw new Error("Engineer draft did not match the required schema."); return value;
+  }
+}
 export class OpenAIEngineerPlanner implements EngineerPlanner {
   public async propose(issueKey: string, decision: string, context: string): Promise<string> {
     const apiKey = process.env.OPENAI_API_KEY?.trim(); if (!apiKey) throw new Error("OPENAI_API_KEY is missing. Add it only to your local .env file.");

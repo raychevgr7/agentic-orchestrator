@@ -9,6 +9,12 @@ export class ApprovedTestWriter {
   public constructor(root: string) { this.root = realpathSync(root); }
 
   public write(path: string, content: string): void {
+    const target = this.target(path);
+    mkdirSync(dirname(target), { recursive: true });
+    writeFileSync(target, content, "utf8");
+  }
+
+  public target(path: string): string {
     const normalized = path.replace(/\\/g, "/");
     if (!allowedTestFile.test(normalized) || !allowedExtension.test(normalized) || normalized.split("/").includes("..")) {
       throw new Error("Only repository-relative test files with supported extensions may be written.");
@@ -17,8 +23,7 @@ export class ApprovedTestWriter {
     if (!target.startsWith(this.root + sep)) throw new Error("Write target is outside the configured project root.");
     assertNoSymlinkParent(this.root, normalized);
     if (existsSync(target) && lstatSync(target).isSymbolicLink()) throw new Error("Refusing to write through a symbolic link.");
-    mkdirSync(dirname(target), { recursive: true });
-    writeFileSync(target, content, "utf8");
+    return target;
   }
 }
 

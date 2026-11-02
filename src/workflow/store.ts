@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import Database from "better-sqlite3";
-import type { Workflow, WorkflowStage, WorkflowStatus } from "./types.js";
+import type { Workflow, WorkflowStage, WorkflowStatus, ReviewVerdict } from "./types.js";
 
 export interface PendingAction {
   kind: string;
@@ -45,6 +45,7 @@ export class SqliteWorkflowStore implements WorkflowStore {
         created_at TEXT NOT NULL
       );
     `);
+    try { this.database.exec("ALTER TABLE workflows ADD COLUMN review_verdict TEXT"); } catch { /* existing database already migrated */ }
   }
 
   public create(workflow: Workflow): void {
@@ -67,9 +68,9 @@ export class SqliteWorkflowStore implements WorkflowStore {
   public save(workflow: Workflow): void {
     const result = this.database.prepare(`
       UPDATE workflows
-      SET stage = @stage, status = @status, updated_at = @updatedAt, feedback = @feedback
+      SET stage = @stage, status = @status, updated_at = @updatedAt, feedback = @feedback, review_verdict = @reviewVerdict
       WHERE id = @id
-    `).run({ ...workflow, feedback: workflow.feedback ?? null });
+    `).run({ ...workflow, feedback: workflow.feedback ?? null, reviewVerdict: workflow.reviewVerdict ?? null });
     if (result.changes !== 1) throw new Error(`Workflow '${workflow.id}' was not found.`);
   }
 
@@ -104,6 +105,7 @@ interface WorkflowRow {
   created_at: string;
   updated_at: string;
   feedback: string | null;
+  review_verdict?: ReviewVerdict | null;
 }
 
 function mapWorkflow(row: WorkflowRow): Workflow {
@@ -115,5 +117,6 @@ function mapWorkflow(row: WorkflowRow): Workflow {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     feedback: row.feedback ?? undefined,
+    reviewVerdict: row.review_verdict ?? undefined,
   };
 }

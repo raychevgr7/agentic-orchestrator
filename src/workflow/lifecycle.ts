@@ -17,6 +17,9 @@ export function approveStage(workflow: Workflow, expectedStage: WorkflowStage, n
   if (workflow.status !== "PENDING_APPROVAL" || workflow.stage !== expectedStage) {
     throw new Error(`Workflow is waiting at ${workflow.stage}, not ${expectedStage}.`);
   }
+  if (expectedStage === "CODE_REVIEW" && workflow.reviewVerdict !== "APPROVE") {
+    throw new Error("CODE_REVIEW requires an APPROVE verdict before the workflow can advance.");
+  }
 
   const currentIndex = workflowStages.indexOf(workflow.stage);
   const stage = workflowStages[currentIndex + 1] ?? "COMPLETE";

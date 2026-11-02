@@ -23,3 +23,5 @@ export function loadAutomationDesignerRule(): string {
 export function loadEngineerRule(): string {
   return readFileSync(join(rulesDirectory, "engineer.md"), "utf8").trim();
 }
+export function loadEngineerDraftRule(): string { return readFileSync(join(rulesDirectory, "engineer-draft.md"), "utf8").trim(); }
+export function loadCodeReviewerRule(): string { return readFileSync(join(rulesDirectory, "code-reviewer.md"), "utf8").trim(); }

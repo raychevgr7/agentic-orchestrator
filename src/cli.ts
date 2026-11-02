@@ -1,11 +1,16 @@
 import "dotenv/config";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { resolve } from "node:path";
 import { ChatService, OpenAIActionInterpreter } from "./chat.js";
 import { JiraAnalysisService, McpJiraIssueReader, OpenAIJiraAnalyst } from "./agents/jira-analyst.js";
 import { OpenAITestPlanner, TestDesignService } from "./agents/test-designer.js";
 import { AutomationDiscoveryService, McpProjectDiscoverer, OpenAIAutomationDecider } from "./agents/automation-designer.js";
 import { EngineerPlanningService, OpenAIEngineerPlanner } from "./agents/engineer.js";
+import { OpenAIEngineerDraftGenerator } from "./agents/engineer.js";
+import { CodeReviewService, OpenAICodeReviewer } from "./agents/code-reviewer.js";
 import { LocalTestsService } from "./testing/local-tests.js";
+import { applyDraft, markDraftPreviewed, previewDraft, stageDraft, type StagedTestDraft, wasDraftPreviewed } from "./code-changes/staged-draft.js";
 import { addFeedback, approveStage, createWorkflow, recoverWorkflow } from "./workflow/lifecycle.js";
 import { SqliteWorkflowStore } from "./workflow/store.js";
 import { workflowStages, type WorkflowStage } from "./workflow/types.js";
@@ -90,6 +95,32 @@ try {
       const result = await service.run(required(identifier, "workflow ID or issue key"), required(argument, "test target"));
       console.log(`Targeted test validation ${result.passed ? "passed" : "failed"}: ${result.artifactPath}`); if (!result.passed) process.exitCode = 1; break;
     }
+    case "stage-draft": {
+      const workflow = find(required(identifier, "workflow ID or issue key"));
+      const testPath = required(argument, "test file path"); const contentFile = required(process.argv[4], "draft content file");
+      const artifactPath = stageDraft(process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts", workflow.issueKey, workflow.id, { path: testPath, content: readFileSync(contentFile, "utf8") });
+      store.save({ ...workflow, reviewVerdict: undefined, updatedAt: new Date().toISOString() });
+      console.log(`Staged draft saved to ${artifactPath}.`); break;
+    }
+    case "generate-draft": {
+      const workflow = find(required(identifier, "workflow ID or issue key")); const root = process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts";
+      const proposal = readFileSync(join(resolve(root), workflow.issueKey, workflow.id, "implementation-proposal.md"), "utf8"); const draft = await new OpenAIEngineerDraftGenerator().generate(proposal);
+      console.log(`Staged draft saved to ${stageDraft(root, workflow.issueKey, workflow.id, draft)}.`); store.save({ ...workflow, reviewVerdict: undefined, updatedAt: new Date().toISOString() }); break;
+    }
+    case "review": {
+      const service = new CodeReviewService(store, new OpenAICodeReviewer(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
+      const result = await service.run(required(identifier, "workflow ID or issue key")); console.log(`Code review ${result.verdict}: ${result.artifactPath}`); break;
+    }
+    case "preview-draft": {
+      const workflow = find(required(identifier, "workflow ID or issue key")); const draft = loadDraft(workflow.issueKey, workflow.id);
+      console.log(previewDraft(required(process.env.PROJECT_SOURCE_ROOT, "PROJECT_SOURCE_ROOT"), draft)); markDraftPreviewed(process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts", workflow.issueKey, workflow.id, draft); break;
+    }
+    case "apply-draft": {
+      if (!process.argv.includes("--confirm")) throw new Error("Preview the draft first, then rerun with --confirm to apply it.");
+      const workflow = find(required(identifier, "workflow ID or issue key")); const draft = loadDraft(workflow.issueKey, workflow.id);
+      if (!wasDraftPreviewed(process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts", workflow.issueKey, workflow.id, draft)) throw new Error("Preview this exact draft before applying it.");
+      applyDraft(required(process.env.PROJECT_SOURCE_ROOT, "PROJECT_SOURCE_ROOT"), draft); console.log("Approved test draft applied."); break;
+    }
     case "analyze": {
       const service = new JiraAnalysisService(store, new McpJiraIssueReader(process.env.JIRA_MCP_URL ?? "http://127.0.0.1:3001/mcp"), new OpenAIJiraAnalyst(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
       const result = await service.run(required(identifier, "workflow ID or issue key"), { includeParent: process.argv.includes("--with-parent"), includeSubtasks: process.argv.includes("--with-subtasks"), includeRelated: process.argv.includes("--with-related") });
@@ -130,5 +161,10 @@ function print(value: unknown): void {
 }
 
 function usage(): void {
-  console.error("Usage: npm run workflow -- start|analyze|design|discover|propose|verify|status|approve|recover|feedback <issue-key-or-id> [stage|message] | chat <free text>\n  analyze options: --with-parent --with-subtasks --with-related");
+  console.error("Usage: npm run workflow -- start|analyze|design|discover|propose|generate-draft|review|verify|stage-draft|preview-draft|apply-draft|status|approve|recover|feedback <issue-key-or-id> [stage|message] | chat <free text>\n  analyze options: --with-parent --with-subtasks --with-related");
+}
+
+function loadDraft(issueKey: string, workflowId: string): StagedTestDraft {
+  const path = join(resolve(process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts"), issueKey, workflowId, "staged-test-draft.json");
+  return JSON.parse(readFileSync(path, "utf8")) as StagedTestDraft;
 }
