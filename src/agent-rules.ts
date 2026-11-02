@@ -7,3 +7,7 @@ const rulesDirectory = join(dirname(fileURLToPath(import.meta.url)), "agent-rule
 export function loadOrchestratorRule(): string {
   return readFileSync(join(rulesDirectory, "orchestrator.md"), "utf8").trim();
 }
+
+export function loadJiraAnalystRule(): string {
+  return readFileSync(join(rulesDirectory, "jira-analyst.md"), "utf8").trim();
+}

@@ -24,6 +24,17 @@ ISSUE_ANALYSIS → TEST_PLAN → PROJECT_DISCOVERY → CODE_CHANGE → LOCAL_TES
 
 The included stages are generic: integrations such as Jira, Jenkins, GitHub/GitLab, and a local project are optional adapters configured by the person running the project.
 
+The first working agent is `jira-analyst`. With `jira-mcp` running and OpenAI configuration present in `.env`, run:
+
+```bash
+npm run workflow -- start PROJECT-123
+npm run workflow -- analyze PROJECT-123
+```
+
+Add `--with-parent`, `--with-subtasks`, and/or `--with-related` to explicitly include those issue records in the analysis context. They are opt-in so the agent does not expand Jira access unexpectedly.
+
+It reads only the scoped Jira issue, writes `issue-analysis.md` and its compact source context under `data/artifacts/`, then returns the workflow to `PENDING_APPROVAL`. Approve the `ISSUE_ANALYSIS` stage only after reviewing that artifact.
+
 ## Configuration
 
 Copy `.env.example` to `.env` and add only your local integration details. `.env` is deliberately ignored by Git and no real credentials belong in this repository.
