@@ -6,6 +6,10 @@ Produce concise English Markdown with exactly these sections:
 
 ## Title
 
+## Feature and automation scope
+
+Explain the ticket feature in plain language and list the exact user flows, behaviours, or risks automated by this change. Base this only on the supplied Jira analysis, test plan, and automation decision.
+
 ## Summary
 
 ## Test evidence

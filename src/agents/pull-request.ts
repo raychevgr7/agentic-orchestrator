@@ -25,10 +25,10 @@ export class PullRequestPreparationService {
     const running = markRunning(workflow, "PULL_REQUEST"); this.store.save(running);
     try {
       const directory = join(resolve(this.artifactsRoot), workflow.issueKey, workflow.id);
-      const files = ["implementation-proposal.md", "code-review.md", "targeted-test-results.json"];
+      const files = ["targeted-test-results.json", "code-review.md", "implementation-proposal.md", "automation-decision.md", "test-plan.md", "issue-analysis.md", "issue-analysis-context.json"];
       const validationPath = join(directory, "targeted-test-results.json");
       assertPassingTargetedValidation(validationPath);
-      const context = files.filter(file => existsSync(join(directory, file))).map(file => `## ${file}\n${readFileSync(join(directory, file), "utf8")}`).join("\n\n");
+      const context = boundedArtifactContext(directory, files);
       const description = await this.writer.prepare(workflow.issueKey, context);
       mkdirSync(directory, { recursive: true });
       const artifactPath = join(directory, "pull-request-description.md"); writeFileSync(artifactPath, `${description}\n`);
@@ -36,6 +36,21 @@ export class PullRequestPreparationService {
       return { artifactPath };
     } catch (error) { this.store.save(recoverWorkflow(running)); throw error; }
   }
+}
+
+function boundedArtifactContext(directory: string, files: string[]): string {
+  let remaining = 45_000;
+  const sections: string[] = [];
+  for (const file of files) {
+    if (!existsSync(join(directory, file)) || remaining <= 0) continue;
+    const header = `## ${file}\n`;
+    const content = readFileSync(join(directory, file), "utf8");
+    const allowed = Math.min(8_000, Math.max(0, remaining - header.length));
+    if (!allowed) break;
+    sections.push(`${header}${content.slice(0, allowed)}${content.length > allowed ? "\n[Artifact truncated]" : ""}`);
+    remaining -= header.length + allowed;
+  }
+  return sections.join("\n\n");
 }
 
 function assertPassingTargetedValidation(path: string): void {
