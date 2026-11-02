@@ -30,7 +30,7 @@ Copy `.env.example` to `.env` and add only your local integration details. `.env
 
 ## Local project MCP server
 
-`project-mcp` provides a safe, read-only view of a local source repository. Set `PROJECT_SOURCE_ROOT` in `.env`, then run:
+`project-mcp` provides a safe, read-only view of a local source repository. Set `PROJECT_SOURCE_ROOT` in `.env`, then run it directly:
 
 ```bash
 npm run project:mcp
@@ -44,6 +44,28 @@ The server exposes four MCP tools:
 - `project_read_source_excerpt`
 
 It only reads supported source files, skips common generated/dependency directories, bounds file sizes and excerpts, and rejects path-traversal attempts. Commands that modify a project or execute tests are intentionally not exposed yet.
+
+To run the MCP servers in Docker instead, use:
+
+```bash
+docker compose up --build
+```
+
+The source project is mounted read-only and the MCP port is published only to `127.0.0.1:3002`. The optional Jira adapter uses its own Compose profile:
+
+```bash
+docker compose --profile jira up --build
+```
+
+## Jira MCP server
+
+`jira-mcp` is an optional, read-only adapter. Configure `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, and an explicit comma-separated `JIRA_ALLOWED_PROJECT_KEYS` scope in `.env`, then run:
+
+```bash
+npm run jira:mcp
+```
+
+It listens only on `127.0.0.1` and exposes `jira_get_issue`, `jira_search_issues`, and `jira_get_attachment`. Searches are always constrained to the configured project scope; it intentionally accepts filters rather than arbitrary JQL. No Jira write operation is included.
 
 ## Status
 

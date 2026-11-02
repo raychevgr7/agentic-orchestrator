@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 export interface ProjectMcpConfig {
   sourceRoot: string;
   port: number;
+  bindHost: "127.0.0.1" | "0.0.0.0";
 }
 
 export function loadProjectMcpConfig(environment = process.env): ProjectMcpConfig {
@@ -11,7 +12,14 @@ export function loadProjectMcpConfig(environment = process.env): ProjectMcpConfi
   return {
     sourceRoot: resolve(sourceRoot),
     port: boundedPort(environment.PROJECT_MCP_PORT),
+    bindHost: bindHost(environment.MCP_BIND_HOST),
   };
+}
+
+function bindHost(value: string | undefined): "127.0.0.1" | "0.0.0.0" {
+  const host = value ?? "127.0.0.1";
+  if (host !== "127.0.0.1" && host !== "0.0.0.0") throw new Error("MCP_BIND_HOST must be 127.0.0.1 or 0.0.0.0.");
+  return host;
 }
 
 function boundedPort(value: string | undefined): number {

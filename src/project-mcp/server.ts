@@ -23,7 +23,7 @@ app.post("/mcp", async (request, response) => {
     console.error("MCP request failed:", error instanceof Error ? error.message : "Unknown error");
   }
 });
-app.listen(config.port, "127.0.0.1", () => console.log(`project-mcp is listening on http://127.0.0.1:${config.port}/mcp`));
+app.listen(config.port, config.bindHost, () => console.log(`project-mcp is listening on http://${config.bindHost}:${config.port}/mcp`));
 
 export function createProjectMcpServer(project: ProjectSource): McpServer {
   const server = new McpServer({ name: "project-source", version: "0.1.0" });

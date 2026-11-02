@@ -38,6 +38,9 @@ export function recoverWorkflow(workflow: Workflow, now = new Date()): Workflow 
 }
 
 export function addFeedback(workflow: Workflow, feedback: string, now = new Date()): Workflow {
+  if (workflow.status === "COMPLETE") {
+    throw new Error("Feedback cannot be added to a completed workflow.");
+  }
   const message = feedback.trim();
   if (!message) throw new Error("Feedback cannot be empty.");
   return { ...updated(workflow, workflow.stage, "PENDING_APPROVAL", now), feedback: message };

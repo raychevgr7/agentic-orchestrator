@@ -1,0 +1,36 @@
+services:
+  project-mcp:
+    build: .
+    command: ["npm", "run", "project:mcp"]
+    environment:
+      PROJECT_SOURCE_ROOT: /workspace/project
+      PROJECT_MCP_PORT: 3002
+      MCP_BIND_HOST: 0.0.0.0
+    volumes:
+      - ${PROJECT_SOURCE_ROOT:?Set PROJECT_SOURCE_ROOT in .env}:/workspace/project:ro
+    ports:
+      - "127.0.0.1:3002:3002"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3002/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  jira-mcp:
+    profiles: ["jira"]
+    build: .
+    command: ["npm", "run", "jira:mcp"]
+    environment:
+      JIRA_BASE_URL: ${JIRA_BASE_URL}
+      JIRA_EMAIL: ${JIRA_EMAIL}
+      JIRA_API_TOKEN: ${JIRA_API_TOKEN}
+      JIRA_ALLOWED_PROJECT_KEYS: ${JIRA_ALLOWED_PROJECT_KEYS}
+      JIRA_MCP_PORT: 3001
+      MCP_BIND_HOST: 0.0.0.0
+    ports:
+      - "127.0.0.1:3001:3001"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10

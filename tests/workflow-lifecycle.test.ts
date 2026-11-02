@@ -31,4 +31,9 @@ describe("workflow lifecycle", () => {
 
     expect(withFeedback).toMatchObject({ stage: "ISSUE_ANALYSIS", status: "PENDING_APPROVAL", feedback: "Please include edge cases." });
   });
+
+  it("does not allow feedback to reopen a completed workflow", () => {
+    const completed = { ...createWorkflow("DEMO-42", createdAt), stage: "COMPLETE" as const, status: "COMPLETE" as const };
+    expect(() => addFeedback(completed, "One more change.")).toThrow("Feedback cannot be added to a completed workflow.");
+  });
 });

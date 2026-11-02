@@ -16,7 +16,7 @@ export interface WorkflowStore {
   find(idOrIssueKey: string): Workflow | undefined;
   save(workflow: Workflow): void;
   savePendingAction(action: PendingAction): void;
-  takePendingAction(): PendingAction | undefined;
+  getPendingAction(): PendingAction | undefined;
   clearPendingAction(): void;
   close(): void;
 }
@@ -80,11 +80,10 @@ export class SqliteWorkflowStore implements WorkflowStore {
     `).run(JSON.stringify(action), new Date().toISOString());
   }
 
-  public takePendingAction(): PendingAction | undefined {
+  public getPendingAction(): PendingAction | undefined {
     const row = this.database.prepare("SELECT action_json FROM pending_actions WHERE id = 1")
       .get() as { action_json: string } | undefined;
     if (!row) return undefined;
-    this.clearPendingAction();
     return JSON.parse(row.action_json) as PendingAction;
   }
 

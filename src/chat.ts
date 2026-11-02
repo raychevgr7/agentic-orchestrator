@@ -69,8 +69,14 @@ export class ChatService {
   }
 
   private executePending(): string {
-    const action = this.store.takePendingAction() as ChatAction | undefined;
+    const action = this.store.getPendingAction() as ChatAction | undefined;
     if (!action) return "No pending action. Describe what you would like to do.";
+    const result = this.execute(action);
+    this.store.clearPendingAction();
+    return result;
+  }
+
+  private execute(action: ChatAction): string {
     const issueKey = action.issueKey!;
 
     switch (action.kind) {

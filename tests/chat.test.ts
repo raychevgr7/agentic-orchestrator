@@ -27,6 +27,16 @@ describe("ChatService", () => {
     expect(store.find("DEMO-8")).toBeUndefined();
     store.close();
   });
+
+  it("keeps a pending action when execution fails, so it can be retried", async () => {
+    const { chat, store } = createChat({ kind: "APPROVE_STAGE", issueKey: "DEMO-9", stage: "TEST_PLAN", explanation: "I can approve the workflow." });
+    store.create({ id: "DEMO-9-existing", issueKey: "DEMO-9", stage: "ISSUE_ANALYSIS", status: "PENDING_APPROVAL", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" });
+
+    await chat.respond("Approve TEST_PLAN for DEMO-9");
+    await expect(chat.respond("yes")).rejects.toThrow();
+    expect(store.getPendingAction()).toMatchObject({ kind: "APPROVE_STAGE", issueKey: "DEMO-9" });
+    store.close();
+  });
 });
 
 function createChat(action: ChatAction) {
