@@ -72,6 +72,7 @@ try {
           const result = await discoveryService.run(issueKey);
           return `Automation decision saved to ${result.artifactPath}.`;
         },
+        generateDraft: async (issueKey) => generateDraftForWorkflow(find(issueKey)),
         reviewCode: async (issueKey) => {
           const result = await codeReviewService.run(issueKey);
           return `Code review ${result.verdict}: ${result.artifactPath}.`;
@@ -109,9 +110,7 @@ try {
       console.log(`Staged draft saved to ${artifactPath}.`); break;
     }
     case "generate-draft": {
-      const workflow = find(required(identifier, "workflow ID or issue key")); const root = process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts";
-      const proposal = readFileSync(join(resolve(root), workflow.issueKey, workflow.id, "implementation-proposal.md"), "utf8"); const draft = await new OpenAIEngineerDraftGenerator().generate(proposal);
-      console.log(`Staged draft saved to ${stageDraft(root, workflow.issueKey, workflow.id, draft)}.`); store.save({ ...workflow, reviewVerdict: undefined, draftFingerprint: draftFingerprint(draft), reviewedDraftFingerprint: undefined, updatedAt: new Date().toISOString() }); break;
+      console.log(await generateDraftForWorkflow(find(required(identifier, "workflow ID or issue key")))); break;
     }
     case "review": {
       const service = new CodeReviewService(store, new OpenAICodeReviewer(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
@@ -174,4 +173,16 @@ function usage(): void {
 function loadDraft(issueKey: string, workflowId: string): StagedTestDraft {
   const path = join(resolve(process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts"), issueKey, workflowId, "staged-test-draft.json");
   return JSON.parse(readFileSync(path, "utf8")) as StagedTestDraft;
+}
+
+async function generateDraftForWorkflow(workflow: ReturnType<typeof find>): Promise<string> {
+  if (workflow.stage !== "CODE_CHANGE" || workflow.status !== "PENDING_APPROVAL") {
+    throw new Error("Draft generation is available only while CODE_CHANGE is waiting for approval.");
+  }
+  const root = process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts";
+  const proposal = readFileSync(join(resolve(root), workflow.issueKey, workflow.id, "implementation-proposal.md"), "utf8");
+  const draft = await new OpenAIEngineerDraftGenerator().generate(proposal);
+  const artifactPath = stageDraft(root, workflow.issueKey, workflow.id, draft);
+  store.save({ ...workflow, reviewVerdict: undefined, draftFingerprint: draftFingerprint(draft), reviewedDraftFingerprint: undefined, updatedAt: new Date().toISOString() });
+  return `Staged draft saved to ${artifactPath}.`;
 }

@@ -11,7 +11,7 @@ Return only valid JSON with `kind`, `issueKey`, `stage`, `feedback`, and `explan
 - Use `SHOW_STATUS` when the user asks for a workflow's status.
 - Use `APPROVE_STAGE` only when the user explicitly asks to approve a supplied stage.
 - Use `ADD_FEEDBACK` only when the user supplies feedback for a workflow.
-- Use `ANALYZE_ISSUE`, `DESIGN_TESTS`, `DISCOVER_AUTOMATION`, or `REVIEW_CODE` only when the user asks for that specific workflow activity.
+- Use `ANALYZE_ISSUE`, `DESIGN_TESTS`, `DISCOVER_AUTOMATION`, `GENERATE_DRAFT`, or `REVIEW_CODE` only when the user asks for that specific workflow activity.
 - Use `UNKNOWN` if the request is unclear or cannot be handled by the current workflow.
 - Never invent an issue key, workflow stage, result, source-code change, CI build URL, or feedback.
 - `explanation` must be concise English plain text.

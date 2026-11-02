@@ -67,6 +67,16 @@ describe("ChatService", () => {
     expect(store.getPendingAction()).toBeUndefined();
     store.close();
   });
+
+  it("generates a draft only after confirmation", async () => {
+    const { chat, store } = createChat({ kind: "GENERATE_DRAFT", issueKey: "DEMO-13", explanation: "I can generate a test draft." }, {
+      generateDraft: async (issueKey: string) => `Draft generated for ${issueKey}.`,
+    });
+    await chat.respond("Generate a test draft for DEMO-13");
+    await expect(chat.respond("yes")).resolves.toBe("Draft generated for DEMO-13.");
+    expect(store.getPendingAction()).toBeUndefined();
+    store.close();
+  });
 });
 
 function createChat(action: ChatAction, activities?: WorkflowActivities) {
