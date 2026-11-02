@@ -25,6 +25,11 @@ describe("workflow lifecycle", () => {
     expect(recovered).toMatchObject({ stage: "ISSUE_ANALYSIS", status: "PENDING_APPROVAL" });
   });
 
+  it("can explicitly retry a rejected stage without advancing it", () => {
+    const rejected = { ...createWorkflow("DEMO-42", createdAt), stage: "LOCAL_TESTS" as const, status: "REJECTED" as const };
+    expect(recoverWorkflow(rejected)).toMatchObject({ stage: "LOCAL_TESTS", status: "PENDING_APPROVAL" });
+  });
+
   it("keeps feedback at the same stage for the next approved attempt", () => {
     const workflow = createWorkflow("DEMO-42", createdAt);
     const withFeedback = addFeedback(workflow, "Please include edge cases.");

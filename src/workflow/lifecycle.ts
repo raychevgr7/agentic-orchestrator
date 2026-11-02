@@ -31,8 +31,8 @@ export function markRunning(workflow: Workflow, expectedStage: WorkflowStage, no
 }
 
 export function recoverWorkflow(workflow: Workflow, now = new Date()): Workflow {
-  if (workflow.status !== "RUNNING") {
-    throw new Error(`Workflow is ${workflow.status}; only a stale RUNNING workflow can be recovered.`);
+  if (workflow.status !== "RUNNING" && workflow.status !== "REJECTED") {
+    throw new Error(`Workflow is ${workflow.status}; only a RUNNING or REJECTED workflow can be recovered.`);
   }
   return updated(workflow, workflow.stage, "PENDING_APPROVAL", now);
 }
