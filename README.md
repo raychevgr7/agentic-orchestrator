@@ -68,6 +68,7 @@ Preview draft for PROJECT-123
 Review the code for PROJECT-123
 Apply draft for PROJECT-123
 Run tests/login.spec.ts for PROJECT-123
+Prepare a pull request for PROJECT-123
 Approve CODE_REVIEW for PROJECT-123
 ```
 
@@ -91,7 +92,10 @@ npm run workflow -- review PROJECT-123
 npm run workflow -- approve PROJECT-123 CODE_REVIEW
 npm run workflow -- apply-draft PROJECT-123 --confirm
 npm run workflow -- verify PROJECT-123 tests/login.spec.ts
+npm run workflow -- prepare-pr PROJECT-123
 ```
+
+`prepare-pr` creates `pull-request-description.md` from the implementation, review, and targeted-test artifacts. It never creates a branch, pushes code, or opens a real pull request; those Git provider integrations remain opt-in future adapters.
 
 If targeted validation fails, the workflow becomes `REJECTED`. Review the artifact, then explicitly retry it:
 

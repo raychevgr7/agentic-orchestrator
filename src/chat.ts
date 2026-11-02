@@ -15,6 +15,7 @@ export const actionKinds = [
   "APPLY_DRAFT",
   "REVIEW_CODE",
   "VERIFY_TESTS",
+  "PREPARE_PULL_REQUEST",
   "SHOW_STATUS",
   "APPROVE_STAGE",
   "ADD_FEEDBACK",
@@ -41,6 +42,7 @@ export interface WorkflowActivities {
   applyDraft?: (issueKey: string) => Promise<string>;
   reviewCode?: (issueKey: string) => Promise<string>;
   verifyTests?: (issueKey: string, testTarget: string) => Promise<string>;
+  preparePullRequest?: (issueKey: string) => Promise<string>;
 }
 
 export class OpenAIActionInterpreter implements ActionInterpreter {
@@ -143,6 +145,9 @@ export class ChatService {
         if (!isRepositoryRelativeTestTarget(action.testTarget)) throw new Error("The requested test target is not repository-relative and safe.");
         if (!this.activities?.verifyTests) throw new Error("No local test executor is registered.");
         return this.activities.verifyTests(issueKey, action.testTarget);
+      case "PREPARE_PULL_REQUEST":
+        if (!this.activities?.preparePullRequest) throw new Error("No pull request preparation executor is registered.");
+        return this.activities.preparePullRequest(issueKey);
       default:
         return "That request cannot be executed through chat yet.";
     }

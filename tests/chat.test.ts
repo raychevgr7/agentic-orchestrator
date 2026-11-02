@@ -101,6 +101,15 @@ describe("ChatService", () => {
     await expect(chat.respond("yes")).resolves.toBe("Validated tests/login.spec.ts for DEMO-15.");
     store.close();
   });
+
+  it("prepares a pull request description only after confirmation", async () => {
+    const { chat, store } = createChat({ kind: "PREPARE_PULL_REQUEST", issueKey: "DEMO-16", explanation: "I can prepare a PR description." }, {
+      preparePullRequest: async issueKey => `PR description prepared for ${issueKey}.`,
+    });
+    await chat.respond("Prepare a pull request for DEMO-16");
+    await expect(chat.respond("yes")).resolves.toBe("PR description prepared for DEMO-16.");
+    store.close();
+  });
 });
 
 function createChat(action: ChatAction, activities?: WorkflowActivities) {

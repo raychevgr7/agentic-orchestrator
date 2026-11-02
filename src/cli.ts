@@ -9,6 +9,7 @@ import { AutomationDiscoveryService, McpProjectDiscoverer, OpenAIAutomationDecid
 import { EngineerPlanningService, OpenAIEngineerPlanner } from "./agents/engineer.js";
 import { OpenAIEngineerDraftGenerator } from "./agents/engineer.js";
 import { CodeReviewService, OpenAICodeReviewer } from "./agents/code-reviewer.js";
+import { OpenAIPullRequestWriter, PullRequestPreparationService } from "./agents/pull-request.js";
 import { LocalTestsService } from "./testing/local-tests.js";
 import { applyDraft, draftFingerprint, markDraftPreviewed, previewDraft, stageDraft, type StagedTestDraft, wasDraftPreviewed } from "./code-changes/staged-draft.js";
 import { addFeedback, approveStage, createWorkflow, recoverWorkflow } from "./workflow/lifecycle.js";
@@ -59,6 +60,7 @@ try {
       const testDesignService = new TestDesignService(store, new OpenAITestPlanner(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
       const discoveryService = new AutomationDiscoveryService(store, new McpProjectDiscoverer(process.env.PROJECT_MCP_URL ?? "http://127.0.0.1:3002/mcp"), new OpenAIAutomationDecider(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
       const codeReviewService = new CodeReviewService(store, new OpenAICodeReviewer(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
+      const pullRequestService = new PullRequestPreparationService(store, new OpenAIPullRequestWriter(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
       const chat = new ChatService(store, new OpenAIActionInterpreter(), {
         analyzeIssue: async (issueKey) => {
           const result = await analysisService.run(issueKey);
@@ -82,6 +84,10 @@ try {
         verifyTests: async (issueKey, testTarget) => {
           const result = await new LocalTestsService(store, process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts").run(issueKey, testTarget);
           return `Targeted test validation ${result.passed ? "passed" : "failed"}: ${result.artifactPath}`;
+        },
+        preparePullRequest: async (issueKey) => {
+          const result = await pullRequestService.run(issueKey);
+          return `Pull request description saved to ${result.artifactPath}.`;
         },
       });
       console.log(await chat.respond(message));
@@ -121,6 +127,10 @@ try {
     case "review": {
       const service = new CodeReviewService(store, new OpenAICodeReviewer(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
       const result = await service.run(required(identifier, "workflow ID or issue key")); console.log(`Code review ${result.verdict}: ${result.artifactPath}`); break;
+    }
+    case "prepare-pr": {
+      const service = new PullRequestPreparationService(store, new OpenAIPullRequestWriter(), process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts");
+      const result = await service.run(required(identifier, "workflow ID or issue key")); console.log(`Pull request description saved to ${result.artifactPath}.`); break;
     }
     case "preview-draft": {
       console.log(previewDraftForWorkflow(find(required(identifier, "workflow ID or issue key")))); break;
@@ -169,7 +179,7 @@ function print(value: unknown): void {
 }
 
 function usage(): void {
-  console.error("Usage: npm run workflow -- start|analyze|design|discover|propose|generate-draft|review|verify|stage-draft|preview-draft|apply-draft|status|approve|recover|feedback <issue-key-or-id> [stage|message] | chat <free text>\n  analyze options: --with-parent --with-subtasks --with-related");
+  console.error("Usage: npm run workflow -- start|analyze|design|discover|propose|generate-draft|review|prepare-pr|verify|stage-draft|preview-draft|apply-draft|status|approve|recover|feedback <issue-key-or-id> [stage|message] | chat <free text>\n  analyze options: --with-parent --with-subtasks --with-related");
 }
 
 function loadDraft(issueKey: string, workflowId: string): StagedTestDraft {

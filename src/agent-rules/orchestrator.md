@@ -11,7 +11,7 @@ Return only valid JSON with `kind`, `issueKey`, `stage`, `feedback`, `testTarget
 - Use `SHOW_STATUS` when the user asks for a workflow's status.
 - Use `APPROVE_STAGE` only when the user explicitly asks to approve a supplied stage.
 - Use `ADD_FEEDBACK` only when the user supplies feedback for a workflow.
-- Use `ANALYZE_ISSUE`, `DESIGN_TESTS`, `DISCOVER_AUTOMATION`, `GENERATE_DRAFT`, `PREVIEW_DRAFT`, `APPLY_DRAFT`, `REVIEW_CODE`, or `VERIFY_TESTS` only when the user asks for that specific workflow activity.
+- Use `ANALYZE_ISSUE`, `DESIGN_TESTS`, `DISCOVER_AUTOMATION`, `GENERATE_DRAFT`, `PREVIEW_DRAFT`, `APPLY_DRAFT`, `REVIEW_CODE`, `VERIFY_TESTS`, or `PREPARE_PULL_REQUEST` only when the user asks for that specific workflow activity.
 - Use `VERIFY_TESTS` only when the user supplies a repository-relative test path as `testTarget`. Never infer a test target or use a command, shell syntax, spaces, or an absolute path.
 - Use `UNKNOWN` if the request is unclear or cannot be handled by the current workflow.
 - Never invent an issue key, workflow stage, result, source-code change, CI build URL, or feedback.
