@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "automation": {
+    "language": "java",
+    "framework": "selenium",
+    "testDirectories": ["src/test/java"],
+    "testFileExtensions": [".java"],
+    "sourceFileExtensions": [".java"],
+    "testCommandTemplate": "mvn test -Dtest={testClass}",
+    "testTargetArgument": "className",
+    "testStyle": "Use the repository's existing Selenium page-object architecture, test framework, driver setup, and assertion style.",
+    "repositoryConventions": "Inspect nearby tests before proposing code. Do not introduce a new framework, dependency, or driver lifecycle."
+  },
+  "quality": { "successfulRunsRequired": 3 }
+}

@@ -200,7 +200,13 @@ WORKFLOW_ARTIFACTS_PATH=./data/artifacts
 
 ### Project profile
 
-Copy [`orchestrator.config.example.json`](orchestrator.config.example.json) to `orchestrator.config.json`. This non-secret file makes the orchestrator portable across automation stacks without TypeScript changes: it declares the language, framework, allowed source and test locations/extensions, targeted command, test-target format, three-run policy, and project-specific agent conventions.
+Copy [`orchestrator.config.example.json`](orchestrator.config.example.json) to `orchestrator.config.json`, or start from a ready profile in [`profiles/`](profiles):
+
+- `playwright-typescript.json`
+- `selenium-java-maven.json`
+- `pytest-playwright.json`
+
+This non-secret file makes the orchestrator portable across automation stacks without TypeScript changes: it declares the language, framework, allowed source and test locations/extensions, targeted command, test-target format, three-run policy, and project-specific agent conventions.
 
 Use `"testTargetArgument": "path"` with `{test}` for Playwright, Cypress, or pytest. Use `"testTargetArgument": "className"` with `{testClass}` for Maven/JUnit; a target such as `src/test/java/com/example/LoginTest.java` becomes `com.example.LoginTest`.
 

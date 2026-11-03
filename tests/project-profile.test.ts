@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { validateProjectProfile } from "../src/project-profile.js";
 import { assertConfiguredTestTarget } from "../src/testing/local-tests.js";
 
@@ -14,5 +16,11 @@ describe("project profile", () => {
     expect(() => assertConfiguredTestTarget("e2e/login.spec.ts", profile)).not.toThrow();
     expect(() => assertConfiguredTestTarget("src/login.spec.ts", profile)).toThrow("configured automation.testDirectories");
     expect(() => assertConfiguredTestTarget("e2e/login.helper.ts", profile)).toThrow("automation.testFileExtensions");
+  });
+
+  it("validates every committed starter profile", () => {
+    for (const name of ["playwright-typescript.json", "selenium-java-maven.json", "pytest-playwright.json"]) {
+      expect(validateProjectProfile(JSON.parse(readFileSync(join(process.cwd(), "profiles", name), "utf8")))).toMatchObject({ version: 1 });
+    }
   });
 });

@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "automation": {
+    "language": "typescript",
+    "framework": "playwright",
+    "testDirectories": ["tests"],
+    "testFileExtensions": [".spec.ts", ".test.ts"],
+    "sourceFileExtensions": [".ts", ".tsx"],
+    "testCommandTemplate": "npx playwright test {test}",
+    "testTargetArgument": "path",
+    "testStyle": "Use the repository's existing Playwright fixtures, page objects, and assertion style.",
+    "repositoryConventions": "Inspect nearby tests before proposing code. Do not introduce a new framework or dependency."
+  },
+  "quality": { "successfulRunsRequired": 3 }
+}
