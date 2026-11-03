@@ -13,6 +13,8 @@ It is designed as a portfolio project for QA and automation engineers: clone it,
 - A staged test-draft workflow with review, preview, safe application, and targeted flaky-test validation.
 - SQLite workflow persistence and generated artifacts for each run.
 
+See [Agents, MCP Servers, and Operating Rules](docs/agents-and-mcp.md) for the detailed agent contracts, data boundaries, and extension guidance.
+
 ## Workflow
 
 ```text
@@ -107,6 +109,8 @@ Configure a least-privilege Jenkins account with read access only, then add thes
 ```dotenv
 JENKINS_BASE_URL=https://jenkins.example.com
 JENKINS_DEFAULT_JOB_PATH=job/ui/job/main
+# Required only when running jenkins-mcp; only these jobs can be read through MCP.
+JENKINS_ALLOWED_JOB_PATHS=job/ui/job/main
 JENKINS_USERNAME=qa-orchestrator
 JENKINS_API_TOKEN=
 ```
@@ -141,6 +145,16 @@ npm run jira:mcp
 
 It exposes scoped issue, search, and attachment reads. It does not accept arbitrary JQL and provides no Jira write operation.
 
+### Jenkins MCP
+
+`jenkins-mcp` is optional and read-only. It exposes build metadata, a bounded sanitized console excerpt, and JUnit totals for an allowlisted Jenkins job.
+
+```bash
+npm run jenkins:mcp
+```
+
+Every MCP call supplies `jobPath` and a positive `buildNumber`. The job path must exactly match `JENKINS_ALLOWED_JOB_PATHS`; arbitrary jobs reachable by the Jenkins token are rejected before Jenkins is called. Use a dedicated least-privilege Jenkins account with read access only.
+
 ### Docker
 
 Run the local-project adapter in Docker:
@@ -155,10 +169,17 @@ The project source is mounted read-only and the service port is published only o
 docker compose --profile jira up --build
 ```
 
+Start the optional Jenkins adapter with the same loopback-only publication:
+
+```bash
+docker compose --profile jenkins up --build
+```
+
 ## Safety model
 
 - MCP servers bind to loopback by default. Docker only exposes ports on loopback.
 - Jira access is restricted to configured project keys and read-only operations.
+- Jenkins MCP access is restricted to exact paths in `JENKINS_ALLOWED_JOB_PATHS` and read-only operations.
 - Test drafts can write only supported test-file extensions beneath the configured source root; symlinked path components are rejected.
 - Applying a draft requires an exact preview fingerprint and an exact approved code-review fingerprint.
 - Test targets must be repository-relative, contain no traversal segments, and resolve inside `PROJECT_SOURCE_ROOT`, including after symlink resolution.
@@ -186,4 +207,4 @@ npm run build
 npm test
 ```
 
-The automated suite covers workflow transitions, persistence, MCP source boundaries, safe test writes, draft-review fingerprints, code-review remediation, chat confirmation, and flaky-test enforcement.
+The automated suite covers workflow transitions, persistence, MCP source boundaries, Jenkins job scoping and HTTP transport, safe test writes, draft-review fingerprints, code-review remediation, chat confirmation, and flaky-test enforcement.

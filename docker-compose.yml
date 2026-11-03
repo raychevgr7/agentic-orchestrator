@@ -34,3 +34,22 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  jenkins-mcp:
+    profiles: ["jenkins"]
+    build: .
+    command: ["npm", "run", "jenkins:mcp"]
+    environment:
+      JENKINS_BASE_URL: ${JENKINS_BASE_URL}
+      JENKINS_USERNAME: ${JENKINS_USERNAME}
+      JENKINS_API_TOKEN: ${JENKINS_API_TOKEN}
+      JENKINS_ALLOWED_JOB_PATHS: ${JENKINS_ALLOWED_JOB_PATHS}
+      JENKINS_MCP_PORT: 3003
+      MCP_BIND_HOST: 0.0.0.0
+    ports:
+      - "127.0.0.1:3003:3003"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3003/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 10

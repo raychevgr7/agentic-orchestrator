@@ -13,6 +13,7 @@
     "chat": "tsx src/cli.ts chat",
     "project:mcp": "tsx src/project-mcp/server.ts",
     "jira:mcp": "tsx src/jira-mcp/server.ts"
+    ,"jenkins:mcp": "tsx src/jenkins-mcp/server.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.2",
