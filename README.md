@@ -1,15 +1,15 @@
 # Agentic Orchestrator
 
-A framework-independent TypeScript reference project for coordinating specialised AI agents through a controlled software-delivery workflow.
+A TypeScript and Playwright reference project for coordinating specialised AI agents through a controlled software-delivery workflow.
 
-It is designed as a portfolio project for QA and automation engineers: clone it, connect your own Jira, local source project, CI system, and model provider, then adapt the agent rules to your organisation. No company-specific credentials, tickets, URLs, or domain assumptions are included.
+It is designed as a portfolio project for QA and automation engineers: clone it, connect your own Jira, TypeScript/Playwright project, Jenkins CI, and model provider, then adapt the agent rules to your organisation. No company-specific credentials, tickets, URLs, or domain assumptions are included.
 
 ## What it demonstrates
 
 - Explicit workflow states and human approval gates.
 - Role-specific agents for issue analysis, test design, automation discovery, implementation planning, draft generation, and code review.
 - English natural-language chat requests that only propose actions; every action needs a separate `yes` confirmation.
-- Optional read-only Jira and local-project MCP adapters.
+- Optional read-only Jira, local-project, and Jenkins MCP adapters.
 - A staged test-draft workflow with review, preview, safe application, and targeted flaky-test validation.
 - SQLite workflow persistence and generated artifacts for each run.
 
@@ -22,8 +22,8 @@ ISSUE_ANALYSIS
   → TEST_PLAN
   → PROJECT_DISCOVERY
   → CODE_CHANGE
-  → CODE_REVIEW
   → LOCAL_TESTS
+  → CODE_REVIEW
   → PULL_REQUEST
   → CI_ANALYSIS
   → COMPLETE
@@ -40,7 +40,7 @@ npm run build
 npm test
 ```
 
-Fill in only the integrations you plan to use in `.env`. The file is ignored by Git.
+Set `PROJECT_SOURCE_ROOT` in `.env` to your local TypeScript/Playwright repository. Add only the Jira, Jenkins, and OpenAI integrations you intend to use. The file is ignored by Git.
 
 Start a workflow through chat:
 
@@ -79,21 +79,23 @@ For a write or test operation, reply `yes` to the displayed proposal. Reply `can
 ## Draft-to-test flow
 
 1. At `CODE_CHANGE`, generate a draft or stage one manually.
-2. Preview the exact draft against the local project.
-3. Run code review. An approval is bound to the draft's SHA-256 fingerprint.
-4. Approve `CODE_REVIEW` to move to `LOCAL_TESTS`.
-5. Approve `CODE_CHANGE`, then apply the previewed draft at `LOCAL_TESTS`. This creates a local feature branch named from the issue key and Jira summary, based on `PROJECT_BASE_BRANCH` (`master` by default).
-6. Run only the new or changed test target. It must pass the profile's `quality.successfulRunsRequired` consecutive times (default profile: `3`).
+2. Approve `CODE_CHANGE` to move to `LOCAL_TESTS`.
+3. Preview the exact draft, then apply it. This creates or switches to a local feature branch named from the issue key and Jira summary, based on `PROJECT_BASE_BRANCH` (`master` by default).
+4. Run only the new or changed test target. It must pass three consecutive runs.
+5. Approve `LOCAL_TESTS` to move to `CODE_REVIEW`, then run code review. An `APPROVE` verdict is bound to the draft's SHA-256 fingerprint.
+6. Approve `CODE_REVIEW` to move to `PULL_REQUEST`.
 
 The direct equivalents are:
 
 ```bash
 npm run workflow -- generate-draft PROJECT-123
+npm run workflow -- approve PROJECT-123 CODE_CHANGE
 npm run workflow -- preview-draft PROJECT-123
-npm run workflow -- review PROJECT-123
-npm run workflow -- approve PROJECT-123 CODE_REVIEW
 npm run workflow -- apply-draft PROJECT-123 --confirm
 npm run workflow -- verify PROJECT-123 tests/login.spec.ts
+npm run workflow -- approve PROJECT-123 LOCAL_TESTS
+npm run workflow -- review PROJECT-123
+npm run workflow -- approve PROJECT-123 CODE_REVIEW
 npm run workflow -- prepare-pr PROJECT-123
 npm run workflow -- analyze-ci PROJECT-123 42
 ```
@@ -183,7 +185,7 @@ docker compose --profile jenkins up --build
 - Test drafts can write only supported test-file extensions beneath the configured source root; symlinked path components are rejected.
 - Applying a draft requires an exact preview fingerprint and an exact approved code-review fingerprint.
 - Test targets must be repository-relative, contain no traversal segments, and resolve inside `PROJECT_SOURCE_ROOT`, including after symlink resolution.
-- Targeted validation runs `npx playwright test {test}` three times. Only a validated test target is substituted into the command.
+- Targeted validation runs `npx playwright test <target>` three times. The target must be a repository-relative `.spec.ts` or `.test.ts` file beneath `tests/`.
 
 ## Configuration
 
@@ -198,9 +200,11 @@ WORKFLOW_ARTIFACTS_PATH=./data/artifacts
 
 `PROJECT_SOURCE_ROOT` is required for previewing, applying, or running a targeted local test.
 
-### Test conventions
+### TypeScript and Playwright conventions
 
-This reference project targets TypeScript and Playwright. Test drafts and targeted validation are limited to `.spec.ts` or `.test.ts` files beneath `tests/`; validation runs `npx playwright test {test}` three consecutive times.
+This reference implementation intentionally supports TypeScript and Playwright only. Source discovery reads `.ts` and `.tsx` files. Test drafts and targeted validation are limited to `.spec.ts` or `.test.ts` files beneath `tests/`; validation runs `npx playwright test <target>` three consecutive times.
+
+To use another stack, adapt the source/test boundaries, approved writer, targeted runner, and relevant agent rules together. Do not change only the prompt: the runtime validation boundaries must match the intended framework.
 
 ## Development
 
