@@ -26,4 +26,6 @@ export interface Workflow {
   reviewVerdict?: ReviewVerdict;
   draftFingerprint?: string;
   reviewedDraftFingerprint?: string;
+  targetedTestFingerprint?: string;
+  validatedDraftFingerprint?: string;
 }

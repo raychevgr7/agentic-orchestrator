@@ -65,6 +65,18 @@ describe("CodeReviewService", () => {
     await new CodeReviewService(store, reviewer, join(root, "artifacts"), project).run(workflow.id);
     store.close();
   });
+
+  it("includes committed feature-branch changes against the base branch", async () => {
+    const root = mkdtempSync(join(tmpdir(), "code-review-committed-diff-")); directories.push(root);
+    const project = join(root, "project"); mkdirSync(join(project, "tests"), { recursive: true });
+    git(project, "init", "-b", "master"); git(project, "config", "user.email", "test@example.com"); git(project, "config", "user.name", "Test User"); writeFileSync(join(project, "README.md"), "fixture"); git(project, "add", "."); git(project, "commit", "-m", "initial");
+    git(project, "switch", "-c", "DEMO-18/committed-review"); writeFileSync(join(project, "tests", "committed.spec.ts"), "test('committed review', () => {});\n"); git(project, "add", "."); git(project, "commit", "-m", "add committed test");
+    const store = new SqliteWorkflowStore(join(root, "workflows.db")); const workflow = { ...createWorkflow("DEMO-18"), stage: "CODE_REVIEW" as const }; store.create(workflow);
+    const directory = join(root, "artifacts", workflow.issueKey, workflow.id); mkdirSync(directory, { recursive: true }); writeFileSync(join(directory, "staged-test-draft.json"), JSON.stringify({ path: "tests/committed.spec.ts", content: "test('committed review', () => {});" }));
+    const reviewer: CodeReviewer = { review: async context => { expect(context).toContain("committed review"); expect(context).toContain("against master"); return "## Verdict\nAPPROVE"; } };
+    await new CodeReviewService(store, reviewer, join(root, "artifacts"), project).run(workflow.id);
+    store.close();
+  });
 });
 
 function git(cwd: string, ...args: string[]): string { return execFileSync("git", args, { cwd, encoding: "utf8" }); }

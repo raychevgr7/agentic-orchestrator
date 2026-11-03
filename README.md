@@ -81,7 +81,7 @@ For a write or test operation, reply `yes` to the displayed proposal. Reply `can
 1. At `CODE_CHANGE`, generate a draft or stage one manually.
 2. Approve `CODE_CHANGE` to move to `LOCAL_TESTS`.
 3. Preview the exact draft, then apply it. This creates or switches to a local feature branch named from the issue key and Jira summary, based on `PROJECT_BASE_BRANCH` (`master` by default).
-4. Run only the new or changed test target. It must pass three consecutive runs.
+4. Run exactly the test path from the current staged draft. It must pass three consecutive runs; the resulting validation evidence is bound to that draft.
 5. Approve `LOCAL_TESTS` to move to `CODE_REVIEW`, then run code review. An `APPROVE` verdict is bound to the draft's SHA-256 fingerprint.
 6. Approve `CODE_REVIEW` to move to `PULL_REQUEST`.
 
@@ -185,7 +185,7 @@ docker compose --profile jenkins up --build
 - Test drafts can write only supported test-file extensions beneath the configured source root; symlinked path components are rejected.
 - Applying a draft requires an exact preview fingerprint and an exact approved code-review fingerprint.
 - Test targets must be repository-relative, contain no traversal segments, and resolve inside `PROJECT_SOURCE_ROOT`, including after symlink resolution.
-- Targeted validation runs `npx playwright test <target>` three times. The target must be a repository-relative `.spec.ts` or `.test.ts` file beneath `tests/`.
+- Targeted validation runs `npx playwright test <target>` three times. The target must be a repository-relative `.spec.ts` or `.test.ts` file beneath `tests/`; `LOCAL_TESTS` cannot advance until a passing result is bound to the current staged draft.
 
 ## Configuration
 

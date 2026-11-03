@@ -126,7 +126,7 @@ try {
       const testPath = required(argument, "test file path"); const contentFile = required(process.argv[4], "draft content file");
       const draft = { path: testPath, content: readFileSync(contentFile, "utf8") };
       const artifactPath = stageDraft(process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts", workflow.issueKey, workflow.id, draft);
-      store.save({ ...workflow, reviewVerdict: undefined, draftFingerprint: draftFingerprint(draft), reviewedDraftFingerprint: undefined, updatedAt: new Date().toISOString() });
+      store.save({ ...workflow, reviewVerdict: undefined, draftFingerprint: draftFingerprint(draft), reviewedDraftFingerprint: undefined, targetedTestFingerprint: undefined, validatedDraftFingerprint: undefined, updatedAt: new Date().toISOString() });
       console.log(`Staged draft saved to ${artifactPath}.`); break;
     }
     case "generate-draft": {
@@ -217,7 +217,7 @@ async function generateDraftForWorkflow(workflow: ReturnType<typeof find>): Prom
   const proposal = readFileSync(join(resolve(root), workflow.issueKey, workflow.id, "implementation-proposal.md"), "utf8");
   const draft = await new OpenAIEngineerDraftGenerator().generate(proposal);
   const artifactPath = stageDraft(root, workflow.issueKey, workflow.id, draft);
-  store.save({ ...workflow, reviewVerdict: undefined, draftFingerprint: draftFingerprint(draft), reviewedDraftFingerprint: undefined, updatedAt: new Date().toISOString() });
+  store.save({ ...workflow, reviewVerdict: undefined, draftFingerprint: draftFingerprint(draft), reviewedDraftFingerprint: undefined, targetedTestFingerprint: undefined, validatedDraftFingerprint: undefined, updatedAt: new Date().toISOString() });
   return `Staged draft saved to ${artifactPath}.`;
 }
 
@@ -230,7 +230,7 @@ function previewDraftForWorkflow(workflow: ReturnType<typeof find>): string {
 
 function applyDraftForWorkflow(workflow: ReturnType<typeof find>): string {
   if (workflow.stage !== "LOCAL_TESTS" || workflow.status !== "PENDING_APPROVAL") {
-    throw new Error("Draft application is available only after CODE_REVIEW has been approved and LOCAL_TESTS is waiting.");
+    throw new Error("Draft application is available only after CODE_CHANGE has been approved and LOCAL_TESTS is waiting.");
   }
   const draft = loadDraft(workflow.issueKey, workflow.id);
   if (!wasDraftPreviewed(process.env.WORKFLOW_ARTIFACTS_PATH ?? "./data/artifacts", workflow.issueKey, workflow.id, draft)) throw new Error("Preview this exact draft before applying it.");

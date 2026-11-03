@@ -10,10 +10,10 @@ Write operations are deliberately narrow:
 
 - `apply-draft` writes only a supported test file under `PROJECT_SOURCE_ROOT`.
 - A local feature branch is created from `PROJECT_BASE_BRANCH` (`master` by default) before the draft is applied.
-- The targeted test must pass the profile's `quality.successfulRunsRequired` consecutive runs before review.
+- The targeted test must use the exact path from the current staged draft and pass three consecutive runs before review. Its evidence is bound to that draft, so `LOCAL_TESTS` cannot advance with a stale, missing, or unrelated result.
 - Commit, push, and opening a pull request remain manual.
 
-This reference implementation targets TypeScript and Playwright. Test writes and targeted validation are limited to `.spec.ts` or `.test.ts` files beneath `tests/`; validation runs `npx playwright test {test}` three consecutive times. Credentials and integration endpoints remain in `.env`.
+This reference implementation targets TypeScript and Playwright. Test writes and targeted validation are limited to `.spec.ts` or `.test.ts` files beneath `tests/`; validation runs `npx playwright test <target>` three consecutive times. Credentials and integration endpoints remain in `.env`.
 
 ## Agent rules
 

@@ -40,4 +40,16 @@ describe("SqliteWorkflowStore", () => {
     expect(store.find("DEMO-1")).toMatchObject({ stage: "COMPLETE", status: "COMPLETE" });
     store.close();
   });
+
+  it("persists targeted validation evidence bound to a staged draft", () => {
+    const directory = mkdtempSync(join(tmpdir(), "agentic-orchestrator-")); temporaryDirectories.push(directory);
+    const path = join(directory, "workflows.db");
+    const store = new SqliteWorkflowStore(path);
+    const workflow = { ...createWorkflow("DEMO-43"), stage: "LOCAL_TESTS" as const, draftFingerprint: "draft-v1", targetedTestFingerprint: "validation-v1", validatedDraftFingerprint: "draft-v1" };
+    store.create(workflow); store.save(workflow); store.close();
+
+    const reopened = new SqliteWorkflowStore(path);
+    expect(reopened.find(workflow.id)).toMatchObject({ targetedTestFingerprint: "validation-v1", validatedDraftFingerprint: "draft-v1" });
+    reopened.close();
+  });
 });

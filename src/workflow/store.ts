@@ -51,6 +51,8 @@ export class SqliteWorkflowStore implements WorkflowStore {
       "ALTER TABLE workflows ADD COLUMN review_verdict TEXT",
       "ALTER TABLE workflows ADD COLUMN draft_fingerprint TEXT",
       "ALTER TABLE workflows ADD COLUMN reviewed_draft_fingerprint TEXT",
+      "ALTER TABLE workflows ADD COLUMN targeted_test_fingerprint TEXT",
+      "ALTER TABLE workflows ADD COLUMN validated_draft_fingerprint TEXT",
     ]) {
       try { this.database.exec(statement); } catch { /* existing database already migrated */ }
     }
@@ -59,9 +61,18 @@ export class SqliteWorkflowStore implements WorkflowStore {
 
   public create(workflow: Workflow): void {
     this.database.prepare(`
-      INSERT INTO workflows (id, issue_key, stage, status, created_at, updated_at, feedback)
-      VALUES (@id, @issueKey, @stage, @status, @createdAt, @updatedAt, @feedback)
-    `).run({ ...workflow, feedback: workflow.feedback ?? null });
+      INSERT INTO workflows (
+        id, issue_key, stage, status, created_at, updated_at, feedback,
+        review_verdict, draft_fingerprint, reviewed_draft_fingerprint,
+        targeted_test_fingerprint, validated_draft_fingerprint
+      ) VALUES (
+        @id, @issueKey, @stage, @status, @createdAt, @updatedAt, @feedback,
+        @reviewVerdict, @draftFingerprint, @reviewedDraftFingerprint,
+        @targetedTestFingerprint, @validatedDraftFingerprint
+      )
+    `).run({ ...workflow, feedback: workflow.feedback ?? null, reviewVerdict: workflow.reviewVerdict ?? null,
+      draftFingerprint: workflow.draftFingerprint ?? null, reviewedDraftFingerprint: workflow.reviewedDraftFingerprint ?? null,
+      targetedTestFingerprint: workflow.targetedTestFingerprint ?? null, validatedDraftFingerprint: workflow.validatedDraftFingerprint ?? null });
   }
 
   public find(idOrIssueKey: string): Workflow | undefined {
@@ -79,10 +90,13 @@ export class SqliteWorkflowStore implements WorkflowStore {
       UPDATE workflows
       SET stage = @stage, status = @status, updated_at = @updatedAt, feedback = @feedback,
         review_verdict = @reviewVerdict, draft_fingerprint = @draftFingerprint,
-        reviewed_draft_fingerprint = @reviewedDraftFingerprint
+        reviewed_draft_fingerprint = @reviewedDraftFingerprint,
+        targeted_test_fingerprint = @targetedTestFingerprint,
+        validated_draft_fingerprint = @validatedDraftFingerprint
       WHERE id = @id
     `).run({ ...workflow, feedback: workflow.feedback ?? null, reviewVerdict: workflow.reviewVerdict ?? null,
-      draftFingerprint: workflow.draftFingerprint ?? null, reviewedDraftFingerprint: workflow.reviewedDraftFingerprint ?? null });
+      draftFingerprint: workflow.draftFingerprint ?? null, reviewedDraftFingerprint: workflow.reviewedDraftFingerprint ?? null,
+      targetedTestFingerprint: workflow.targetedTestFingerprint ?? null, validatedDraftFingerprint: workflow.validatedDraftFingerprint ?? null });
     if (result.changes !== 1) throw new Error(`Workflow '${workflow.id}' was not found.`);
   }
 
@@ -120,6 +134,8 @@ interface WorkflowRow {
   review_verdict?: ReviewVerdict | null;
   draft_fingerprint?: string | null;
   reviewed_draft_fingerprint?: string | null;
+  targeted_test_fingerprint?: string | null;
+  validated_draft_fingerprint?: string | null;
 }
 
 function mapWorkflow(row: WorkflowRow): Workflow {
@@ -134,5 +150,7 @@ function mapWorkflow(row: WorkflowRow): Workflow {
     reviewVerdict: row.review_verdict ?? undefined,
     draftFingerprint: row.draft_fingerprint ?? undefined,
     reviewedDraftFingerprint: row.reviewed_draft_fingerprint ?? undefined,
+    targetedTestFingerprint: row.targeted_test_fingerprint ?? undefined,
+    validatedDraftFingerprint: row.validated_draft_fingerprint ?? undefined,
   };
 }

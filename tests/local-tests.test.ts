@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { LocalTestsService } from "../src/testing/local-tests.js";
+import { draftFingerprint } from "../src/code-changes/staged-draft.js";
 import { createWorkflow } from "../src/workflow/lifecycle.js";
 import { SqliteWorkflowStore } from "../src/workflow/store.js";
 
@@ -22,7 +23,7 @@ describe("LocalTestsService", () => {
 
     expect(result.passed).toBe(true);
     expect(commands).toEqual(["npx playwright test tests/login.spec.ts", "npx playwright test tests/login.spec.ts", "npx playwright test tests/login.spec.ts"]);
-    expect(store.find(workflow.id)).toMatchObject({ stage: "LOCAL_TESTS", status: "PENDING_APPROVAL" });
+    expect(store.find(workflow.id)).toMatchObject({ stage: "LOCAL_TESTS", status: "PENDING_APPROVAL", targetedTestFingerprint: expect.any(String) });
     expect(JSON.parse(readFileSync(result.artifactPath, "utf8"))).toMatchObject({ target: "tests/login.spec.ts", outcomes: [0, 0, 0], passed: true });
     store.close();
   });
@@ -60,6 +61,23 @@ describe("LocalTestsService", () => {
     store.close();
   });
 
+  it("recovers the workflow when test execution throws", async () => {
+    const { store, workflow, artifactsRoot } = setup("DEMO-21");
+    try {
+      await expect(new LocalTestsService(store, artifactsRoot, async () => { throw new Error("Playwright could not start."); }).run(workflow.id, "tests/login.spec.ts")).rejects.toThrow("Playwright could not start");
+      expect(store.find(workflow.id)).toMatchObject({ stage: "LOCAL_TESTS", status: "PENDING_APPROVAL" });
+    } finally { store.close(); }
+  });
+
+  it("rejects a passing but different test target before changing workflow state", async () => {
+    const { store, workflow, artifactsRoot, projectRoot } = setup("DEMO-22");
+    writeFileSync(join(projectRoot, "tests", "already-passing.spec.ts"), "test");
+    try {
+      await expect(new LocalTestsService(store, artifactsRoot, async () => 0).run(workflow.id, "tests/already-passing.spec.ts")).rejects.toThrow("exact test path");
+      expect(store.find(workflow.id)).toMatchObject({ stage: "LOCAL_TESTS", status: "PENDING_APPROVAL" });
+    } finally { store.close(); }
+  });
+
 });
 
 function setup(issueKey: string) {
@@ -69,9 +87,11 @@ function setup(issueKey: string) {
   mkdirSync(join(projectRoot, "tests"), { recursive: true });
   writeFileSync(join(projectRoot, "tests", "login.spec.ts"), "test");
   process.env.PROJECT_SOURCE_ROOT = projectRoot;
-  const workflow = { ...createWorkflow(issueKey, new Date("2026-11-02T08:00:00.000Z")), stage: "LOCAL_TESTS" as const };
+  const draft = { path: "tests/login.spec.ts", content: "test" };
+  const workflow = { ...createWorkflow(issueKey, new Date("2026-11-02T08:00:00.000Z")), stage: "LOCAL_TESTS" as const, draftFingerprint: draftFingerprint(draft) };
   store.create(workflow);
-  return { store, workflow, artifactsRoot: join(root, "artifacts"), projectRoot };
+  const artifactsRoot = join(root, "artifacts"); const artifactDirectory = join(artifactsRoot, workflow.issueKey, workflow.id); mkdirSync(artifactDirectory, { recursive: true }); writeFileSync(join(artifactDirectory, "staged-test-draft.json"), JSON.stringify(draft));
+  return { store, workflow, artifactsRoot, projectRoot };
 }
 
 function isPermissionError(error: unknown): boolean { return typeof error === "object" && error !== null && "code" in error && error.code === "EPERM"; }

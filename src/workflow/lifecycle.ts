@@ -24,6 +24,13 @@ export function approveStage(workflow: Workflow, expectedStage: WorkflowStage, n
   )) {
     throw new Error("CODE_REVIEW requires an APPROVE verdict for the current staged draft before the workflow can advance.");
   }
+  if (expectedStage === "LOCAL_TESTS" && (
+    !workflow.targetedTestFingerprint ||
+    !workflow.draftFingerprint ||
+    workflow.validatedDraftFingerprint !== workflow.draftFingerprint
+  )) {
+    throw new Error("LOCAL_TESTS requires a passing targeted validation for the current staged draft before the workflow can advance.");
+  }
 
   const currentIndex = workflowStages.indexOf(workflow.stage);
   if (currentIndex < 0) throw new Error(`Workflow has an unsupported stage: ${workflow.stage}.`);
