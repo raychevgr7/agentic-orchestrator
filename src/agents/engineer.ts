@@ -3,7 +3,7 @@ import { join, resolve } from "node:path";
 import OpenAI from "openai";
 import { loadEngineerDraftRule, loadEngineerRule } from "../agent-rules.js";
 import type { StagedTestDraft } from "../code-changes/staged-draft.js";
-import { loadTestExecutionPolicy } from "../testing/execution-policy.js";
+import { loadProjectProfileOrLegacy, profilePrompt } from "../project-profile.js";
 import { markRunning, recoverWorkflow } from "../workflow/lifecycle.js";
 import type { WorkflowStore } from "../workflow/store.js";
 
@@ -12,7 +12,7 @@ export interface EngineerDraftGenerator { generate(proposal: string): Promise<St
 export class OpenAIEngineerDraftGenerator implements EngineerDraftGenerator {
   public async generate(proposal: string): Promise<StagedTestDraft> {
     const apiKey = process.env.OPENAI_API_KEY?.trim(); if (!apiKey) throw new Error("OPENAI_API_KEY is missing. Add it only to your local .env file.");
-    const response = await new OpenAI({ apiKey }).responses.create({ model: process.env.OPENAI_MODEL ?? "gpt-4.1-mini", max_output_tokens: 2_000, store: false, input: [{ role: "developer", content: loadEngineerDraftRule() }, { role: "user", content: proposal.slice(0, 50_000) }] });
+    const response = await new OpenAI({ apiKey }).responses.create({ model: process.env.OPENAI_MODEL ?? "gpt-4.1-mini", max_output_tokens: 2_000, store: false, input: [{ role: "developer", content: loadEngineerDraftRule() }, { role: "user", content: `${profilePrompt(loadProjectProfileOrLegacy())}\n\nIMPLEMENTATION PROPOSAL:\n${proposal.slice(0, 50_000)}` }] });
     const value = JSON.parse(response.output_text) as StagedTestDraft;
     if (!value || typeof value.path !== "string" || typeof value.content !== "string") throw new Error("Engineer draft did not match the required schema."); return value;
   }
@@ -20,8 +20,8 @@ export class OpenAIEngineerDraftGenerator implements EngineerDraftGenerator {
 export class OpenAIEngineerPlanner implements EngineerPlanner {
   public async propose(issueKey: string, decision: string, context: string): Promise<string> {
     const apiKey = process.env.OPENAI_API_KEY?.trim(); if (!apiKey) throw new Error("OPENAI_API_KEY is missing. Add it only to your local .env file.");
-    const repetitions = loadTestExecutionPolicy().requiredConsecutiveSuccesses;
-    const response = await new OpenAI({ apiKey }).responses.create({ model: process.env.OPENAI_MODEL ?? "gpt-4.1-mini", max_output_tokens: 1_200, store: false, input: [{ role: "developer", content: loadEngineerRule().replace("{{TEST_SUCCESS_REPETITIONS}}", String(repetitions)) }, { role: "user", content: `Create an implementation proposal for ${issueKey}.\n\nAUTOMATION DECISION:\n${decision.slice(0, 30_000)}\n\nPROJECT DISCOVERY:\n${context.slice(0, 30_000)}` }] });
+    const profile = loadProjectProfileOrLegacy(); const repetitions = profile.quality.successfulRunsRequired;
+    const response = await new OpenAI({ apiKey }).responses.create({ model: process.env.OPENAI_MODEL ?? "gpt-4.1-mini", max_output_tokens: 1_200, store: false, input: [{ role: "developer", content: loadEngineerRule().replace("{{TEST_SUCCESS_REPETITIONS}}", String(repetitions)) }, { role: "user", content: `${profilePrompt(profile)}\n\nCreate an implementation proposal for ${issueKey}.\n\nAUTOMATION DECISION:\n${decision.slice(0, 30_000)}\n\nPROJECT DISCOVERY:\n${context.slice(0, 30_000)}` }] });
     if (response.status !== "completed" || !response.output_text.trim()) throw new Error(`Engineering proposal did not complete successfully (status: ${response.status}).`); return response.output_text.trim();
   }
 }

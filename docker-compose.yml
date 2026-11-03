@@ -4,10 +4,12 @@ services:
     command: ["npm", "run", "project:mcp"]
     environment:
       PROJECT_SOURCE_ROOT: /workspace/project
+      ORCHESTRATOR_CONFIG_PATH: /app/orchestrator.config.json
       PROJECT_MCP_PORT: 3002
       MCP_BIND_HOST: 0.0.0.0
     volumes:
       - ${PROJECT_SOURCE_ROOT:?Set PROJECT_SOURCE_ROOT in .env}:/workspace/project:ro
+      - ./orchestrator.config.json:/app/orchestrator.config.json:ro
     ports:
       - "127.0.0.1:3002:3002"
     healthcheck:

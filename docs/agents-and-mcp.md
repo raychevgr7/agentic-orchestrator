@@ -13,6 +13,8 @@ Write operations are deliberately narrow:
 - The targeted test must pass `TEST_SUCCESS_REPETITIONS` consecutive runs before review.
 - Commit, push, and opening a pull request remain manual.
 
+`orchestrator.config.json` is the non-secret project profile. It defines the automation language/framework, test and source boundaries, targeted test command, target format, required successful runs, and local conventions supplied to automation-related agents. Credentials and integration endpoints remain in `.env`.
+
 ## Agent rules
 
 | Agent | Inputs | Output artifact | Key rules |

@@ -194,11 +194,17 @@ OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4.1-mini
 PROJECT_SOURCE_ROOT=
 WORKFLOW_ARTIFACTS_PATH=./data/artifacts
-TEST_SUCCESS_REPETITIONS=3
-PROJECT_TEST_COMMAND_TEMPLATE=npx playwright test {test}
 ```
 
 `PROJECT_SOURCE_ROOT` is required for previewing, applying, or running a targeted local test.
+
+### Project profile
+
+Copy [`orchestrator.config.example.json`](orchestrator.config.example.json) to `orchestrator.config.json`. This non-secret file makes the orchestrator portable across automation stacks without TypeScript changes: it declares the language, framework, allowed source and test locations/extensions, targeted command, test-target format, three-run policy, and project-specific agent conventions.
+
+Use `"testTargetArgument": "path"` with `{test}` for Playwright, Cypress, or pytest. Use `"testTargetArgument": "className"` with `{testClass}` for Maven/JUnit; a target such as `src/test/java/com/example/LoginTest.java` becomes `com.example.LoginTest`.
+
+Keep secrets, URLs, and local repository paths in `.env`. Keep framework behavior and non-secret conventions in `orchestrator.config.json`. The real config is ignored by Git; only the generic example is committed.
 
 ## Development
 

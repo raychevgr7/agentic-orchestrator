@@ -4,6 +4,7 @@ import OpenAI from "openai";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { loadAutomationDesignerRule } from "../agent-rules.js";
+import { loadProjectProfileOrLegacy, profilePrompt } from "../project-profile.js";
 import { markRunning, recoverWorkflow } from "../workflow/lifecycle.js";
 import type { WorkflowStore } from "../workflow/store.js";
 
@@ -20,7 +21,7 @@ export class McpProjectDiscoverer implements ProjectDiscoverer {
 export class OpenAIAutomationDecider implements AutomationDecider {
   public async decide(issueKey: string, plan: string, discovery: Record<string, unknown>): Promise<string> {
     const apiKey = process.env.OPENAI_API_KEY?.trim(); if (!apiKey) throw new Error("OPENAI_API_KEY is missing. Add it only to your local .env file.");
-    const response = await new OpenAI({ apiKey }).responses.create({ model: process.env.OPENAI_MODEL ?? "gpt-4.1-mini", max_output_tokens: 1_200, store: false, input: [{ role: "developer", content: loadAutomationDesignerRule() }, { role: "user", content: `Decide automation scope for ${issueKey}.\n\nTEST PLAN:\n${plan.slice(0, 30_000)}\n\nPROJECT DISCOVERY:\n${JSON.stringify(discovery).slice(0, 30_000)}` }] });
+    const response = await new OpenAI({ apiKey }).responses.create({ model: process.env.OPENAI_MODEL ?? "gpt-4.1-mini", max_output_tokens: 1_200, store: false, input: [{ role: "developer", content: loadAutomationDesignerRule() }, { role: "user", content: `${profilePrompt(loadProjectProfileOrLegacy())}\n\nDecide automation scope for ${issueKey}.\n\nTEST PLAN:\n${plan.slice(0, 30_000)}\n\nPROJECT DISCOVERY:\n${JSON.stringify(discovery).slice(0, 30_000)}` }] });
     if (response.status !== "completed" || !response.output_text.trim()) throw new Error(`Automation decision did not complete successfully (status: ${response.status}).`); return response.output_text.trim();
   }
 }

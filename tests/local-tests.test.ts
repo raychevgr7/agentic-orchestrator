@@ -10,12 +10,14 @@ const directories: string[] = [];
 const originalTemplate = process.env.PROJECT_TEST_COMMAND_TEMPLATE;
 const originalRepetitions = process.env.TEST_SUCCESS_REPETITIONS;
 const originalProjectSourceRoot = process.env.PROJECT_SOURCE_ROOT;
+const originalProfilePath = process.env.ORCHESTRATOR_CONFIG_PATH;
 
 afterEach(() => {
   for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true });
   process.env.PROJECT_TEST_COMMAND_TEMPLATE = originalTemplate;
   process.env.TEST_SUCCESS_REPETITIONS = originalRepetitions;
   process.env.PROJECT_SOURCE_ROOT = originalProjectSourceRoot;
+  process.env.ORCHESTRATOR_CONFIG_PATH = originalProfilePath;
 });
 
 describe("LocalTestsService", () => {
@@ -68,6 +70,16 @@ describe("LocalTestsService", () => {
 
     await expect(new LocalTestsService(store, artifactsRoot, async () => 0).run(workflow.id, "tests/linked.spec.ts")).rejects.toThrow("inside PROJECT_SOURCE_ROOT");
     store.close();
+  });
+
+  it("does not transition the workflow when profile validation fails", async () => {
+    const { store, workflow, artifactsRoot } = setup("DEMO-21");
+    try {
+      mkdirSync(artifactsRoot, { recursive: true }); const invalidProfile = join(artifactsRoot, "invalid-profile.json"); writeFileSync(invalidProfile, "not-json");
+      process.env.ORCHESTRATOR_CONFIG_PATH = invalidProfile;
+      await expect(new LocalTestsService(store, artifactsRoot, async () => 0).run(workflow.id, "tests/login.spec.ts")).rejects.toThrow("Could not read orchestrator config");
+      expect(store.find(workflow.id)).toMatchObject({ stage: "LOCAL_TESTS", status: "PENDING_APPROVAL" });
+    } finally { store.close(); }
   });
 });
 
