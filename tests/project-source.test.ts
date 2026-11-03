@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { ProjectSource } from "../src/project-mcp/source.js";
-import { validateProjectProfile } from "../src/project-profile.js";
 
 const directories: string[] = [];
 afterEach(() => { for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true }); });
@@ -39,15 +38,6 @@ describe("ProjectSource", () => {
     expect(() => new ProjectSource(root).readExcerpt("src/linked.ts")).toThrow("outside the configured project root");
   });
 
-  it("does not classify production Java files as tests in a Java profile", () => {
-    const root = mkdtempSync(join(tmpdir(), "project-mcp-java-")); directories.push(root);
-    mkdirSync(join(root, "src", "main", "java"), { recursive: true }); mkdirSync(join(root, "src", "test", "java"), { recursive: true });
-    writeFileSync(join(root, "src", "main", "java", "LoginPage.java"), "class LoginPage {}");
-    writeFileSync(join(root, "src", "test", "java", "LoginTest.java"), "class LoginTest {}");
-    const profile = validateProjectProfile({ version: 1, automation: { language: "java", framework: "selenium", testDirectories: ["src/test/java"], testFileExtensions: [".java"], sourceFileExtensions: [".java"], testCommandTemplate: "mvn test -Dtest={testClass}", testTargetArgument: "className" }, quality: { successfulRunsRequired: 3 } });
-
-    expect(new ProjectSource(root, profile).listTests()).toEqual(["src/test/java/LoginTest.java"]);
-  });
 });
 
 function fixtureProject(): string {

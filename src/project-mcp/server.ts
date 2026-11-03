@@ -5,7 +5,6 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { z } from "zod";
 import { loadProjectMcpConfig } from "./config.js";
 import { ProjectSource } from "./source.js";
-import { loadProjectProfileOrLegacy } from "../project-profile.js";
 
 export function createProjectMcpApp(source: ProjectSource) {
   const app = express();
@@ -28,7 +27,7 @@ export function createProjectMcpApp(source: ProjectSource) {
 
 function startProjectMcpServer(): void {
   const config = loadProjectMcpConfig();
-  createProjectMcpApp(new ProjectSource(config.sourceRoot, loadProjectProfileOrLegacy())).listen(config.port, config.bindHost, () => console.log(`project-mcp is listening on http://${config.bindHost}:${config.port}/mcp`));
+  createProjectMcpApp(new ProjectSource(config.sourceRoot)).listen(config.port, config.bindHost, () => console.log(`project-mcp is listening on http://${config.bindHost}:${config.port}/mcp`));
 }
 
 if (process.argv[1] && /project-mcp[\\/]server\.(?:ts|js)$/.test(process.argv[1])) startProjectMcpServer();

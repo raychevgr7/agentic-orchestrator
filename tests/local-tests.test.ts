@@ -7,29 +7,21 @@ import { createWorkflow } from "../src/workflow/lifecycle.js";
 import { SqliteWorkflowStore } from "../src/workflow/store.js";
 
 const directories: string[] = [];
-const originalTemplate = process.env.PROJECT_TEST_COMMAND_TEMPLATE;
-const originalRepetitions = process.env.TEST_SUCCESS_REPETITIONS;
 const originalProjectSourceRoot = process.env.PROJECT_SOURCE_ROOT;
-const originalProfilePath = process.env.ORCHESTRATOR_CONFIG_PATH;
 
 afterEach(() => {
   for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true });
-  process.env.PROJECT_TEST_COMMAND_TEMPLATE = originalTemplate;
-  process.env.TEST_SUCCESS_REPETITIONS = originalRepetitions;
   process.env.PROJECT_SOURCE_ROOT = originalProjectSourceRoot;
-  process.env.ORCHESTRATOR_CONFIG_PATH = originalProfilePath;
 });
 
 describe("LocalTestsService", () => {
   it("runs only the requested test three times and accepts three consecutive successes", async () => {
     const { store, workflow, artifactsRoot } = setup("DEMO-17");
-    process.env.PROJECT_TEST_COMMAND_TEMPLATE = "npm test -- {test}";
-    process.env.TEST_SUCCESS_REPETITIONS = "3";
     const commands: string[] = [];
     const result = await new LocalTestsService(store, artifactsRoot, async command => { commands.push(command); return 0; }).run(workflow.id, "tests/login.spec.ts");
 
     expect(result.passed).toBe(true);
-    expect(commands).toEqual(["npm test -- tests/login.spec.ts", "npm test -- tests/login.spec.ts", "npm test -- tests/login.spec.ts"]);
+    expect(commands).toEqual(["npx playwright test tests/login.spec.ts", "npx playwright test tests/login.spec.ts", "npx playwright test tests/login.spec.ts"]);
     expect(store.find(workflow.id)).toMatchObject({ stage: "LOCAL_TESTS", status: "PENDING_APPROVAL" });
     expect(JSON.parse(readFileSync(result.artifactPath, "utf8"))).toMatchObject({ target: "tests/login.spec.ts", outcomes: [0, 0, 0], passed: true });
     store.close();
@@ -37,8 +29,6 @@ describe("LocalTestsService", () => {
 
   it("stops at the first failure and rejects the workflow for an explicit retry", async () => {
     const { store, workflow, artifactsRoot } = setup("DEMO-18");
-    process.env.PROJECT_TEST_COMMAND_TEMPLATE = "npm test -- {test}";
-    process.env.TEST_SUCCESS_REPETITIONS = "3";
     const outcomes = [0, 1];
     const result = await new LocalTestsService(store, artifactsRoot, async () => outcomes.shift() ?? 0).run(workflow.id, "tests/login.spec.ts");
 
@@ -50,7 +40,6 @@ describe("LocalTestsService", () => {
 
   it("rejects absolute paths, traversal, and targets resolving outside the project root", async () => {
     const { store, workflow, artifactsRoot, projectRoot } = setup("DEMO-19");
-    process.env.PROJECT_TEST_COMMAND_TEMPLATE = "npm test -- {test}";
     process.env.PROJECT_SOURCE_ROOT = projectRoot;
     const service = new LocalTestsService(store, artifactsRoot, async () => 0);
 
@@ -65,22 +54,12 @@ describe("LocalTestsService", () => {
     const external = mkdtempSync(join(tmpdir(), "external-test-")); directories.push(external);
     const externalTest = join(external, "external.spec.ts"); writeFileSync(externalTest, "test");
     try { symlinkSync(externalTest, join(projectRoot, "tests", "linked.spec.ts"), "file"); } catch (error) { if (isPermissionError(error)) { store.close(); return; } throw error; }
-    process.env.PROJECT_TEST_COMMAND_TEMPLATE = "npm test -- {test}";
     process.env.PROJECT_SOURCE_ROOT = projectRoot;
 
     await expect(new LocalTestsService(store, artifactsRoot, async () => 0).run(workflow.id, "tests/linked.spec.ts")).rejects.toThrow("inside PROJECT_SOURCE_ROOT");
     store.close();
   });
 
-  it("does not transition the workflow when profile validation fails", async () => {
-    const { store, workflow, artifactsRoot } = setup("DEMO-21");
-    try {
-      mkdirSync(artifactsRoot, { recursive: true }); const invalidProfile = join(artifactsRoot, "invalid-profile.json"); writeFileSync(invalidProfile, "not-json");
-      process.env.ORCHESTRATOR_CONFIG_PATH = invalidProfile;
-      await expect(new LocalTestsService(store, artifactsRoot, async () => 0).run(workflow.id, "tests/login.spec.ts")).rejects.toThrow("Could not read orchestrator config");
-      expect(store.find(workflow.id)).toMatchObject({ stage: "LOCAL_TESTS", status: "PENDING_APPROVAL" });
-    } finally { store.close(); }
-  });
 });
 
 function setup(issueKey: string) {

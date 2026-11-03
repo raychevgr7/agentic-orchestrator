@@ -12,4 +12,4 @@ Produce a concise English Markdown implementation proposal with exactly these se
 
 Do not invent paths, APIs, locators, fixtures, or test results. Explicitly label any missing evidence.
 
-A changed or newly added test is successful only after {{TEST_SUCCESS_REPETITIONS}} consecutive successful executions targeting that test. Do not run the entire suite repeatedly merely for this gate. A single passing run is insufficient. If any targeted run fails, the consecutive-success count resets to zero; report the failure as potential flakiness or a functional defect and do not claim completion.
+A changed or newly added Playwright test is successful only after three consecutive executions targeting that test. Do not run the entire suite repeatedly merely for this gate. A single passing run is insufficient. If any targeted run fails, the consecutive-success count resets to zero; report the failure as potential flakiness or a functional defect and do not claim completion.

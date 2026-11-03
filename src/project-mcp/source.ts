@@ -1,9 +1,8 @@
 import { readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { relative, resolve, sep } from "node:path";
-import type { ProjectProfile } from "../project-profile.js";
 
 const ignoredDirectories = new Set([".git", ".idea", ".next", "build", "dist", "node_modules", "target", "vendor"]);
-const supportedExtensions = new Set([".go", ".java", ".js", ".jsx", ".py", ".rb", ".rs", ".ts", ".tsx"]);
+const supportedExtensions = new Set([".ts", ".tsx"]);
 const maximumFileBytes = 1_000_000;
 
 export interface SourceMatch { path: string; line: number; snippet: string; }
@@ -11,15 +10,7 @@ export interface RelevantFile { path: string; score: number; matchedQueries: str
 
 export class ProjectSource {
   private readonly root: string;
-  private readonly sourceExtensions: Set<string>;
-  private readonly testDirectories: string[];
-  private readonly profile?: ProjectProfile;
-
-  public constructor(root: string, profile?: ProjectProfile) {
-    this.root = realpathSync(root); this.profile = profile;
-    this.sourceExtensions = new Set(profile ? [...profile.automation.sourceFileExtensions, ...profile.automation.testFileExtensions] : [".go", ".java", ".js", ".jsx", ".py", ".rb", ".rs", ".ts", ".tsx"]);
-    this.testDirectories = profile?.automation.testDirectories ?? ["test", "tests", "spec", "__tests__"];
-  }
+  public constructor(root: string) { this.root = realpathSync(root); }
 
   public listTests(maxResults = 200): string[] {
     return this.files().filter(file => this.isTestFile(file)).slice(0, maxResults).map((file) => this.relativePath(file));
@@ -70,7 +61,7 @@ export class ProjectSource {
 
   public readExcerpt(path: string, startLine = 1, maxLines = 120): { path: string; startLine: number; endLine: number; content: string } {
     const normalized = path.replace(/\\/g, "/");
-    if (normalized.split("/").includes("..") || !this.isSupported(normalized)) {
+    if (normalized.split("/").includes("..") || !supportedExtensions.has(extension(normalized))) {
       throw new Error("Only repository-relative supported source paths are allowed.");
     }
     const candidatePath = resolve(this.root, normalized);
@@ -83,23 +74,18 @@ export class ProjectSource {
     return { path: normalized, startLine: start, endLine: start + selected.length - 1, content: selected.join("\n") };
   }
 
-  private files(): string[] { return walk(this.root, this.sourceExtensions); }
+  private files(): string[] { return walk(this.root); }
   private relativePath(file: string): string { return relative(this.root, file).split(sep).join("/"); }
-  private isSupported(path: string): boolean { return [...this.sourceExtensions].some(value => path.toLowerCase().endsWith(value)); }
-  private isTestFile(file: string): boolean {
-    const path = this.relativePath(file);
-    if (!this.profile) return this.testDirectories.some(directory => path === directory || path.startsWith(`${directory}/`)) || /\.(?:test|spec)\.[^.]+$/i.test(path);
-    return this.testDirectories.some(directory => path.startsWith(`${directory}/`)) && this.profile.automation.testFileExtensions.some(value => path.toLowerCase().endsWith(value));
-  }
+  private isTestFile(file: string): boolean { return /(?:^|\/)tests(?:\/|$)|\.(?:test|spec)\.tsx?$/i.test(this.relativePath(file)); }
 }
 
-function walk(directory: string, extensions: Set<string>): string[] {
+function walk(directory: string): string[] {
   const files: string[] = [];
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
     if (ignoredDirectories.has(entry.name)) continue;
     const fullPath = resolve(directory, entry.name);
-    if (entry.isDirectory()) files.push(...walk(fullPath, extensions));
-    else if (entry.isFile() && statSync(fullPath).size <= maximumFileBytes && [...extensions].some(value => entry.name.toLowerCase().endsWith(value))) files.push(fullPath);
+    if (entry.isDirectory()) files.push(...walk(fullPath));
+    else if (entry.isFile() && statSync(fullPath).size <= maximumFileBytes && supportedExtensions.has(extension(entry.name))) files.push(fullPath);
   }
   return files;
 }
@@ -110,4 +96,5 @@ function normalizedQuery(query: string): string {
   return normalized;
 }
 
+function extension(path: string): string { const index = path.lastIndexOf("."); return index < 0 ? "" : path.slice(index).toLowerCase(); }
 function isWithinRoot(root: string, path: string): boolean { return path === root || path.startsWith(root + sep); }

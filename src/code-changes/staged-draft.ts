@@ -2,7 +2,6 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join, resolve } from "node:path";
 import { ApprovedTestWriter } from "../project-mcp/writer.js";
-import { loadProjectProfileOrLegacy } from "../project-profile.js";
 
 export interface StagedTestDraft { path: string; content: string; }
 
@@ -17,12 +16,12 @@ export function draftFingerprint(draft: StagedTestDraft): string {
 }
 
 export function previewDraft(projectRoot: string, draft: StagedTestDraft): string {
-  const target = new ApprovedTestWriter(projectRoot, loadProjectProfileOrLegacy()).target(draft.path);
+  const target = new ApprovedTestWriter(projectRoot).target(draft.path);
   const before = existsSync(target) ? readFileSync(target, "utf8") : "";
   return `--- ${draft.path}\n+++ ${draft.path}\n${before ? `- existing file (${before.length} chars)\n` : "- new file\n"}+ proposed content (${draft.content.length} chars)\n`;
 }
 
-export function applyDraft(projectRoot: string, draft: StagedTestDraft): void { new ApprovedTestWriter(projectRoot, loadProjectProfileOrLegacy()).write(draft.path, draft.content); }
+export function applyDraft(projectRoot: string, draft: StagedTestDraft): void { new ApprovedTestWriter(projectRoot).write(draft.path, draft.content); }
 
 export function markDraftPreviewed(artifactsRoot: string, issueKey: string, workflowId: string, draft: StagedTestDraft): void {
   writeFileSync(join(resolve(artifactsRoot), issueKey, workflowId, "staged-test-draft.preview"), fingerprint(draft), "utf8");

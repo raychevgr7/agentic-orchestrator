@@ -83,7 +83,7 @@ For a write or test operation, reply `yes` to the displayed proposal. Reply `can
 3. Run code review. An approval is bound to the draft's SHA-256 fingerprint.
 4. Approve `CODE_REVIEW` to move to `LOCAL_TESTS`.
 5. Approve `CODE_CHANGE`, then apply the previewed draft at `LOCAL_TESTS`. This creates a local feature branch named from the issue key and Jira summary, based on `PROJECT_BASE_BRANCH` (`master` by default).
-6. Run only the new or changed test target. It must pass `TEST_SUCCESS_REPETITIONS` consecutive times (default: `3`).
+6. Run only the new or changed test target. It must pass the profile's `quality.successfulRunsRequired` consecutive times (default profile: `3`).
 
 The direct equivalents are:
 
@@ -183,7 +183,7 @@ docker compose --profile jenkins up --build
 - Test drafts can write only supported test-file extensions beneath the configured source root; symlinked path components are rejected.
 - Applying a draft requires an exact preview fingerprint and an exact approved code-review fingerprint.
 - Test targets must be repository-relative, contain no traversal segments, and resolve inside `PROJECT_SOURCE_ROOT`, including after symlink resolution.
-- `PROJECT_TEST_COMMAND_TEMPLATE` must include `{test}`. Only the validated test target is substituted into it.
+- Targeted validation runs `npx playwright test {test}` three times. Only a validated test target is substituted into the command.
 
 ## Configuration
 
@@ -198,19 +198,9 @@ WORKFLOW_ARTIFACTS_PATH=./data/artifacts
 
 `PROJECT_SOURCE_ROOT` is required for previewing, applying, or running a targeted local test.
 
-### Project profile
+### Test conventions
 
-Copy [`orchestrator.config.example.json`](orchestrator.config.example.json) to `orchestrator.config.json`, or start from a ready profile in [`profiles/`](profiles):
-
-- `playwright-typescript.json`
-- `selenium-java-maven.json`
-- `pytest-playwright.json`
-
-This non-secret file makes the orchestrator portable across automation stacks without TypeScript changes: it declares the language, framework, allowed source and test locations/extensions, targeted command, test-target format, three-run policy, and project-specific agent conventions.
-
-Use `"testTargetArgument": "path"` with `{test}` for Playwright, Cypress, or pytest. Use `"testTargetArgument": "className"` with `{testClass}` for Maven/JUnit; a target such as `src/test/java/com/example/LoginTest.java` becomes `com.example.LoginTest`.
-
-Keep secrets, URLs, and local repository paths in `.env`. Keep framework behavior and non-secret conventions in `orchestrator.config.json`. The real config is ignored by Git; only the generic example is committed.
+This reference project targets TypeScript and Playwright. Test drafts and targeted validation are limited to `.spec.ts` or `.test.ts` files beneath `tests/`; validation runs `npx playwright test {test}` three consecutive times.
 
 ## Development
 

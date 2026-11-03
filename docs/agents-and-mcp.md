@@ -10,10 +10,10 @@ Write operations are deliberately narrow:
 
 - `apply-draft` writes only a supported test file under `PROJECT_SOURCE_ROOT`.
 - A local feature branch is created from `PROJECT_BASE_BRANCH` (`master` by default) before the draft is applied.
-- The targeted test must pass `TEST_SUCCESS_REPETITIONS` consecutive runs before review.
+- The targeted test must pass the profile's `quality.successfulRunsRequired` consecutive runs before review.
 - Commit, push, and opening a pull request remain manual.
 
-`orchestrator.config.json` is the non-secret project profile. It defines the automation language/framework, test and source boundaries, targeted test command, target format, required successful runs, and local conventions supplied to automation-related agents. Credentials and integration endpoints remain in `.env`.
+This reference implementation targets TypeScript and Playwright. Test writes and targeted validation are limited to `.spec.ts` or `.test.ts` files beneath `tests/`; validation runs `npx playwright test {test}` three consecutive times. Credentials and integration endpoints remain in `.env`.
 
 ## Agent rules
 
