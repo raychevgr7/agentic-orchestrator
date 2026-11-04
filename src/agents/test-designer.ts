@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import OpenAI from "openai";
 import { loadTestDesignerRule } from "../agent-rules.js";
+import { boundedTokenBudget, openAIModel, openAIReasoningEffort } from "../core/openai-config.js";
 import { markRunning, recoverWorkflow } from "../workflow/lifecycle.js";
 import type { WorkflowStore } from "../workflow/store.js";
 
@@ -12,7 +13,7 @@ export class OpenAITestPlanner implements TestPlanner {
     const apiKey = process.env.OPENAI_API_KEY?.trim();
     if (!apiKey) throw new Error("OPENAI_API_KEY is missing. Add it only to your local .env file.");
     const response = await new OpenAI({ apiKey }).responses.create({
-      model: process.env.OPENAI_MODEL ?? "gpt-4.1-mini", max_output_tokens: 1_200, store: false,
+      model: openAIModel(), reasoning: { effort: openAIReasoningEffort() }, max_output_tokens: boundedTokenBudget("TEST_PLAN_MAX_OUTPUT_TOKENS", 2_000, 500, 3_000), store: false,
       input: [{ role: "developer", content: loadTestDesignerRule() }, { role: "user", content: `Design a test plan for ${issueKey} using only this issue analysis:\n\n${issueAnalysis.slice(0, 45_000)}` }],
     });
     if (response.status !== "completed" || !response.output_text.trim()) throw new Error(`Test design did not complete successfully (status: ${response.status}).`);

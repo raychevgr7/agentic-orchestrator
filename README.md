@@ -193,12 +193,14 @@ See [`.env.example`](.env.example) for all variables. The main local settings ar
 
 ```dotenv
 OPENAI_API_KEY=
-OPENAI_MODEL=gpt-4.1-mini
+OPENAI_MODEL=gpt-6-luna
 PROJECT_SOURCE_ROOT=
 WORKFLOW_ARTIFACTS_PATH=./data/artifacts
 ```
 
 `PROJECT_SOURCE_ROOT` is required for previewing, applying, or running a targeted local test.
+
+All OpenAI calls use `gpt-6-luna` by default with fixed `low` reasoning and `store: false`. Output budgets are bounded so invalid local values fall back safely: analysis `500–16000`, test plan and automation discovery `500–3000`, and the remaining agent reports `500–3000` (draft generation `500–4000`). See [`.env.example`](.env.example) for the per-operation environment variables.
 
 ### TypeScript and Playwright conventions
 

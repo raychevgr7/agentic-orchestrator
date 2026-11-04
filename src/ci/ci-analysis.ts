@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import OpenAI from "openai";
 import { loadCiAnalystRule } from "../agent-rules.js";
+import { boundedTokenBudget, openAIModel, openAIReasoningEffort } from "../core/openai-config.js";
 import { markRunning, recoverWorkflow } from "../workflow/lifecycle.js";
 import type { WorkflowStore } from "../workflow/store.js";
 import type { CiBuildReport, CiProvider } from "./provider.js";
@@ -13,7 +14,7 @@ export class OpenAICiAnalyst implements CiAnalyst {
     const apiKey = process.env.OPENAI_API_KEY?.trim();
     if (!apiKey) throw new Error("OPENAI_API_KEY is missing. Add it only to your local .env file.");
     const response = await new OpenAI({ apiKey }).responses.create({
-      model: process.env.OPENAI_MODEL ?? "gpt-4.1-mini", max_output_tokens: 1_000, store: false,
+      model: openAIModel(), reasoning: { effort: openAIReasoningEffort() }, max_output_tokens: boundedTokenBudget("CI_ANALYSIS_MAX_OUTPUT_TOKENS", 1_000, 500, 3_000), store: false,
       input: [{ role: "developer", content: loadCiAnalystRule() }, { role: "user", content: `Analyze CI build evidence for ${issueKey}.\n\n${JSON.stringify(report).slice(0, 60_000)}` }],
     });
     if (response.status !== "completed" || !response.output_text.trim()) throw new Error(`CI analysis did not complete successfully (status: ${response.status}).`);

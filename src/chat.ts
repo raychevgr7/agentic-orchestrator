@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { loadOrchestratorRule } from "./agent-rules.js";
+import { boundedTokenBudget, openAIModel, openAIReasoningEffort } from "./core/openai-config.js";
 import { addFeedback, approveStage, createWorkflow } from "./workflow/lifecycle.js";
 import type { PendingAction, WorkflowStore } from "./workflow/store.js";
 import { workflowStages, type WorkflowStage } from "./workflow/types.js";
@@ -53,8 +54,9 @@ export class OpenAIActionInterpreter implements ActionInterpreter {
     if (!apiKey) throw new Error("OPENAI_API_KEY is missing. Add it only to your local .env file.");
 
     const response = await new OpenAI({ apiKey }).responses.create({
-      model: process.env.OPENAI_MODEL ?? "gpt-4.1-mini",
-      max_output_tokens: 400,
+      model: openAIModel(),
+      reasoning: { effort: openAIReasoningEffort() },
+      max_output_tokens: boundedTokenBudget("CHAT_MAX_OUTPUT_TOKENS", 600, 200, 1_000),
       store: false,
       input: [
         { role: "developer", content: loadOrchestratorRule()

@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { join, resolve } from "node:path";
 import OpenAI from "openai";
 import { loadCodeReviewerRule } from "../agent-rules.js";
+import { boundedTokenBudget, openAIModel, openAIReasoningEffort } from "../core/openai-config.js";
 import { draftFingerprint, type StagedTestDraft } from "../code-changes/staged-draft.js";
 import { markRunning, recoverWorkflow, returnForCodeChanges } from "../workflow/lifecycle.js";
 import type { ReviewVerdict } from "../workflow/types.js";
@@ -10,7 +11,7 @@ import type { WorkflowStore } from "../workflow/store.js";
 
 export interface CodeReviewer { review(context: string): Promise<string>; }
 export class OpenAICodeReviewer implements CodeReviewer {
-  public async review(context: string): Promise<string> { const key = process.env.OPENAI_API_KEY?.trim(); if (!key) throw new Error("OPENAI_API_KEY is missing."); const r = await new OpenAI({ apiKey: key }).responses.create({ model: process.env.OPENAI_MODEL ?? "gpt-4.1-mini", max_output_tokens: 1200, store: false, input: [{ role: "developer", content: loadCodeReviewerRule() }, { role: "user", content: context.slice(0, 60000) }] }); return r.output_text.trim(); }
+  public async review(context: string): Promise<string> { const key = process.env.OPENAI_API_KEY?.trim(); if (!key) throw new Error("OPENAI_API_KEY is missing."); const r = await new OpenAI({ apiKey: key }).responses.create({ model: openAIModel(), reasoning: { effort: openAIReasoningEffort() }, max_output_tokens: boundedTokenBudget("CODE_REVIEW_MAX_OUTPUT_TOKENS", 1_200, 500, 3_000), store: false, input: [{ role: "developer", content: loadCodeReviewerRule() }, { role: "user", content: context.slice(0, 60000) }] }); return r.output_text.trim(); }
 }
 export class CodeReviewService {
   public constructor(private readonly store: WorkflowStore, private readonly reviewer: CodeReviewer, private readonly artifactsRoot: string, private readonly projectRoot?: string, private readonly baseBranch = process.env.PROJECT_BASE_BRANCH?.trim() || "master") {}

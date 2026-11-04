@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import OpenAI from "openai";
 import { loadPullRequestRule } from "../agent-rules.js";
+import { boundedTokenBudget, openAIModel, openAIReasoningEffort } from "../core/openai-config.js";
 import { markRunning, recoverWorkflow } from "../workflow/lifecycle.js";
 import type { WorkflowStore } from "../workflow/store.js";
 
@@ -11,7 +12,7 @@ export class OpenAIPullRequestWriter implements PullRequestWriter {
   public async prepare(issueKey: string, context: string): Promise<string> {
     const apiKey = process.env.OPENAI_API_KEY?.trim();
     if (!apiKey) throw new Error("OPENAI_API_KEY is missing. Add it only to your local .env file.");
-    const response = await new OpenAI({ apiKey }).responses.create({ model: process.env.OPENAI_MODEL ?? "gpt-4.1-mini", max_output_tokens: 1_000, store: false, input: [{ role: "developer", content: loadPullRequestRule() }, { role: "user", content: `Prepare a PR description for ${issueKey}.\n\n${context.slice(0, 50_000)}` }] });
+    const response = await new OpenAI({ apiKey }).responses.create({ model: openAIModel(), reasoning: { effort: openAIReasoningEffort() }, max_output_tokens: boundedTokenBudget("PULL_REQUEST_MAX_OUTPUT_TOKENS", 1_000, 500, 3_000), store: false, input: [{ role: "developer", content: loadPullRequestRule() }, { role: "user", content: `Prepare a PR description for ${issueKey}.\n\n${context.slice(0, 50_000)}` }] });
     if (response.status !== "completed" || !response.output_text.trim()) throw new Error(`Pull request preparation did not complete successfully (status: ${response.status}).`);
     return response.output_text.trim();
   }

@@ -4,6 +4,7 @@ import OpenAI from "openai";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { loadJiraAnalystRule } from "../agent-rules.js";
+import { boundedTokenBudget, openAIModel, openAIReasoningEffort } from "../core/openai-config.js";
 import { markRunning, recoverWorkflow } from "../workflow/lifecycle.js";
 import type { WorkflowStore } from "../workflow/store.js";
 
@@ -32,7 +33,7 @@ export class OpenAIJiraAnalyst implements IssueAnalyst {
     const apiKey = process.env.OPENAI_API_KEY?.trim();
     if (!apiKey) throw new Error("OPENAI_API_KEY is missing. Add it only to your local .env file.");
     const response = await new OpenAI({ apiKey }).responses.create({
-      model: process.env.OPENAI_MODEL ?? "gpt-4.1-mini", max_output_tokens: 1_200, store: false,
+      model: openAIModel(), reasoning: { effort: openAIReasoningEffort() }, max_output_tokens: boundedTokenBudget("ANALYSIS_MAX_OUTPUT_TOKENS", 10_000, 500, 16_000), store: false,
       input: [{ role: "developer", content: loadJiraAnalystRule() }, { role: "user", content: `Analyze issue ${issueKey}. Treat this as compact source material; do not infer omitted details.\n\nJIRA ISSUE:\n${JSON.stringify(compactIssue(issue))}` }],
     });
     if (response.status !== "completed" || !response.output_text.trim()) throw new Error(`Jira analysis did not complete successfully (status: ${response.status}).`);
